@@ -9,6 +9,7 @@ import org.mvplugins.multiverse.core.command.MVCommandIssuer;
 import org.mvplugins.multiverse.external.acf.commands.annotation.CommandAlias;
 import org.mvplugins.multiverse.external.acf.commands.annotation.CommandCompletion;
 import org.mvplugins.multiverse.external.acf.commands.annotation.CommandPermission;
+import org.mvplugins.multiverse.external.acf.commands.annotation.ConsumesRest;
 import org.mvplugins.multiverse.external.acf.commands.annotation.Description;
 import org.mvplugins.multiverse.external.acf.commands.annotation.Flags;
 import org.mvplugins.multiverse.external.acf.commands.annotation.Single;
@@ -49,7 +50,7 @@ class ModifyCommand extends PortalsCommand {
             @Description("The property to modify.")
             String property,
 
-            @Single
+            @ConsumesRest
             @Syntax("<value>")
             @Description("The value to set.")
             String value

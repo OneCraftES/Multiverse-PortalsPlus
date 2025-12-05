@@ -89,7 +89,7 @@ final class MVPCoreListener implements PortalsListener {
             // The player can't see this portal, and can't use it.
             Logging.finer(String.format("'%s' was DENIED access to this portal event.", event.getPlayer().getName()));
             event.setCanUseThisPortal(false);
-        } else if (p.getDestination() == null) {
+        } else if (p.getActionHandler().isFailure()) {
             if (config.getPortalsDefaultToNether()) {
                 Logging.finer("Allowing MVPortal to act as nether portal.");
                 return;

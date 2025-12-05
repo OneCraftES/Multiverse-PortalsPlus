@@ -9,16 +9,20 @@ package org.mvplugins.multiverse.portals;
 
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Date;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Objects;
 import java.util.Set;
 import java.util.Stack;
 import java.util.regex.Pattern;
 
 import com.dumptruckman.minecraft.util.Logging;
 import org.bukkit.configuration.ConfigurationSection;
+import org.bukkit.entity.Entity;
 import org.jetbrains.annotations.ApiStatus;
 import org.jetbrains.annotations.Nullable;
+import org.mvplugins.multiverse.core.command.MVCommandManager;
 import org.mvplugins.multiverse.core.config.handle.MemoryConfigurationHandle;
 import org.mvplugins.multiverse.core.config.handle.StringPropertyHandle;
 import org.mvplugins.multiverse.core.config.migration.ConfigMigrator;
@@ -27,9 +31,15 @@ import org.mvplugins.multiverse.core.config.migration.action.MoveMigratorAction;
 import org.mvplugins.multiverse.core.destination.DestinationInstance;
 import org.mvplugins.multiverse.core.destination.DestinationsProvider;
 import org.mvplugins.multiverse.core.teleportation.BlockSafety;
+import org.mvplugins.multiverse.core.utils.result.Attempt;
 import org.mvplugins.multiverse.core.world.LoadedMultiverseWorld;
 import org.mvplugins.multiverse.core.world.WorldManager;
+import org.mvplugins.multiverse.external.vavr.control.Option;
 import org.mvplugins.multiverse.external.vavr.control.Try;
+import org.mvplugins.multiverse.portals.action.ActionFailureReason;
+import org.mvplugins.multiverse.portals.action.ActionHandler;
+import org.mvplugins.multiverse.portals.action.ActionHandlerProvider;
+import org.mvplugins.multiverse.portals.action.ActionHandlerType;
 import org.mvplugins.multiverse.portals.config.PortalsConfig;
 import org.mvplugins.multiverse.portals.enums.PortalType;
 import org.bukkit.Location;
@@ -62,6 +72,8 @@ public final class MVPortal {
     private final WorldManager worldManager;
     private final DestinationsProvider destinationsProvider;
     private final BlockSafety blockSafety;
+    private final ActionHandlerProvider actionHandlerProvider;
+    private final MVCommandManager commandManager;
 
     private final String name;
     private final MVPortalNodes configNodes;
@@ -94,16 +106,24 @@ public final class MVPortal {
         this.worldManager = this.plugin.getServiceLocator().getService(WorldManager.class);
         this.destinationsProvider = this.plugin.getServiceLocator().getService(DestinationsProvider.class);
         this.blockSafety = this.plugin.getServiceLocator().getService(BlockSafety.class);
+        this.actionHandlerProvider = this.plugin.getServiceLocator().getService(ActionHandlerProvider.class);
+        this.commandManager = this.plugin.getServiceLocator().getService(MVCommandManager.class);
 
         this.name = name;
 
         var config = this.plugin.getPortalsConfig();
         this.configNodes = new MVPortalNodes(plugin, this);
-        var portalSection = config.getConfigurationSection("portals." + this.name);
-        if (portalSection == null) {
-            portalSection = config.createSection("portals." + this.name);
-        }
-        this.configHandle = MemoryConfigurationHandle.builder(portalSection, configNodes.getNodes())
+        var portalSection = Option.of(config.getConfigurationSection("portals." + this.name))
+                .getOrElse(() -> config.createSection("portals." + this.name));
+        this.configHandle = setUpConfigHandle(portalSection);
+        this.stringPropertyHandle = new StringPropertyHandle(this.configHandle);
+        configHandle.load();
+
+        setUpPermissions();
+    }
+
+    private MemoryConfigurationHandle setUpConfigHandle(ConfigurationSection portalSection) {
+        return MemoryConfigurationHandle.builder(portalSection, configNodes.getNodes())
                 .migrator(ConfigMigrator.builder(configNodes.version)
                         .addVersionMigrator(VersionMigrator.builder(1.0)
                                 .addAction(MoveMigratorAction.of("safeteleport", "safe-teleport"))
@@ -119,11 +139,14 @@ public final class MVPortal {
                                     }
                                 })
                                 .build())
+                        .addVersionMigrator(VersionMigrator.builder(1.2)
+                                .addAction(MoveMigratorAction.of("destination", "action"))
+                                .build())
                         .build())
                 .build();
-        this.stringPropertyHandle = new StringPropertyHandle(this.configHandle);
-        configHandle.load();
+    }
 
+    private void setUpPermissions() {
         this.permission = this.plugin.getServer().getPluginManager().getPermission("multiverse.portal.access." + this.name);
         if (this.permission == null) {
             this.permission = new Permission("multiverse.portal.access." + this.name, "Allows access to the " + this.name + " portal", PermissionDefault.OP);
@@ -142,6 +165,10 @@ public final class MVPortal {
         }
     }
 
+    /**
+     *
+     * @return
+     */
     public String getName() {
         return this.name;
     }
@@ -271,24 +298,41 @@ public final class MVPortal {
         return this.location;
     }
 
-    public boolean setDestination(String destinationString) {
-        DestinationInstance<?, ?> newDestination = this.destinationsProvider.parseDestination(destinationString).getOrNull();
-        return setDestination(newDestination);
+    public Try<Void> setActionType(ActionHandlerType<?, ?> actionType) {
+        return configHandle.set(configNodes.actionType, actionType.getName());
     }
 
-    public boolean setDestination(DestinationInstance<?, ?> newDestination) {
-        if (newDestination == null) {
-            Logging.warning("Portal " + this.name + " has an invalid DESTINATION!");
-            return false;
-        }
-        return this.configHandle.set(configNodes.destination, newDestination.toString()).isSuccess();
+    public Try<Void> setActionType(String actionType) {
+        return configHandle.set(configNodes.actionType, actionType);
     }
 
-    public DestinationInstance<?, ?> getDestination() {
-        return this.destinationsProvider.parseDestination(this.configHandle.get(configNodes.destination))
-                .onFailure(f ->
-                        Logging.warning("Portal " + this.name + " has an invalid DESTINATION! " + f.getFailureMessage().formatted()))
-                .getOrNull();
+    public String getActionType() {
+        return this.configHandle.get(configNodes.actionType);
+    }
+
+    public Try<Void> setAction(String action) {
+        return configHandle.set(configNodes.action, action);
+    }
+
+    public String getAction() {
+        return configHandle.get(configNodes.action);
+    }
+
+    public Attempt<? extends ActionHandler<?, ?>, ActionFailureReason> getActionHandler() {
+        return actionHandlerProvider.parseHandler(getActionType(), getAction());
+    }
+
+    public Attempt<Void, ActionFailureReason> runActionFor(Entity entity) {
+        return getActionHandler()
+                .mapAttempt(actionHandler -> actionHandler.runAction(this, entity))
+                .onSuccess(() -> {
+                    if (entity instanceof Player player) {
+                        plugin.getPortalSession(player).setTeleportTime(new Date());
+                    }
+                })
+                .onFailure(failure -> {
+                    Logging.warning(failure.getFailureMessage().formatted(commandManager.getCommandIssuer(entity)));
+                });
     }
 
     /**
@@ -597,5 +641,39 @@ public final class MVPortal {
     @ApiStatus.ScheduledForRemoval(inVersion = "6.0")
     public PortalLocation getLocation() {
         return getPortalLocation();
+    }
+
+
+    @Deprecated(since = "5.2", forRemoval = true)
+    @ApiStatus.ScheduledForRemoval(inVersion = "6.0")
+    public boolean setDestination(String destinationString) {
+        DestinationInstance<?, ?> newDestination = this.destinationsProvider.parseDestination(destinationString).getOrNull();
+        return setDestination(newDestination);
+    }
+
+    @Deprecated(since = "5.2", forRemoval = true)
+    @ApiStatus.ScheduledForRemoval(inVersion = "6.0")
+    public boolean setDestination(DestinationInstance<?, ?> newDestination) {
+        if (newDestination == null) {
+            Logging.warning("Portal " + this.name + " has an invalid DESTINATION!");
+            return false;
+        }
+        if (!Objects.equals(getActionType(), "multiverse-destination")) {
+           Logging.warning("Portal " + this.name + " is not set to use multiverse destination!");
+            return false;
+        }
+        return this.configHandle.set(configNodes.action, newDestination.toString()).isSuccess();
+    }
+
+    @Deprecated(since = "5.2", forRemoval = true)
+    @ApiStatus.ScheduledForRemoval(inVersion = "6.0")
+    public DestinationInstance<?, ?> getDestination() {
+        return this.destinationsProvider.parseDestination(getAction())
+                .onFailure(f -> {
+                    if (getAction().equals("multiverse-destination")) {
+                        Logging.warning("Portal " + this.name + " has an invalid DESTINATION! " + f.getFailureMessage().formatted());
+                    }
+                })
+                .getOrNull();
     }
 }

@@ -1,5 +1,6 @@
 package org.mvplugins.multiverse.portals.listeners;
 
+import com.dumptruckman.minecraft.util.Logging;
 import org.bukkit.Location;
 import org.bukkit.entity.Entity;
 import org.bukkit.event.EventHandler;
@@ -8,23 +9,29 @@ import org.bukkit.event.entity.EntityPortalEvent;
 import org.jvnet.hk2.annotations.Service;
 import org.mvplugins.multiverse.core.destination.DestinationInstance;
 import org.mvplugins.multiverse.core.teleportation.AsyncSafetyTeleporter;
+import org.mvplugins.multiverse.core.teleportation.BlockSafety;
 import org.mvplugins.multiverse.core.teleportation.PassengerModes;
 import org.mvplugins.multiverse.external.jakarta.inject.Inject;
 import org.mvplugins.multiverse.external.jetbrains.annotations.NotNull;
 import org.mvplugins.multiverse.portals.MVPortal;
+import org.mvplugins.multiverse.portals.config.PortalsConfig;
+import org.mvplugins.multiverse.portals.event.MVPortalEvent;
 import org.mvplugins.multiverse.portals.utils.PortalManager;
 
 @Service
 public final class MVPEntityPortalListener implements Listener {
 
     private final PortalManager portalManager;
-    private final AsyncSafetyTeleporter teleporter;
+    private final PortalsConfig portalsConfig;
+    private final BlockSafety blockSafety;
 
     @Inject
     MVPEntityPortalListener(@NotNull PortalManager portalManager,
-                            @NotNull AsyncSafetyTeleporter teleporter) {
+                            @NotNull PortalsConfig portalsConfig,
+                            @NotNull BlockSafety blockSafety) {
         this.portalManager = portalManager;
-        this.teleporter = teleporter;
+        this.portalsConfig = portalsConfig;
+        this.blockSafety = blockSafety;
     }
 
     @EventHandler(ignoreCancelled = true)
@@ -33,20 +40,27 @@ public final class MVPEntityPortalListener implements Listener {
         Location location = entity.getLocation();
 
         MVPortal portal = portalManager.getPortal(location);
-        if (portal == null || !portal.getTeleportNonPlayers()) {
+        if (portal == null) {
+            // Check around the player to make sure
+            Location translatedLoc = this.blockSafety.findPortalBlockNextTo(event.getFrom());
+            if (translatedLoc != null) {
+                Logging.finer("Entity was outside of portal, The location has been successfully translated.");
+                portal = portalManager.getPortal(translatedLoc);
+            }
+        }
+
+        if (portal == null) {
+            return;
+        }
+        if (!portal.getTeleportNonPlayers()) {
+            if (!portalsConfig.getPortalsDefaultToNether()) {
+                event.setCancelled(true);
+            }
             return;
         }
 
-        DestinationInstance<?, ?> destination = portal.getDestination();
-        if (destination == null) {
-            return;
-        }
-
-        event.setCancelled(true);
-
-        teleporter.to(destination)
-                .checkSafety(portal.getCheckDestinationSafety() && destination.checkTeleportSafety())
-                .passengerMode(PassengerModes.RETAIN_ALL)
-                .teleportSingle(entity);
+        Logging.fine("[EntityPortalEvent] Portal action for entity: " + entity);
+        portal.runActionFor(entity)
+                .onSuccess(() -> event.setCancelled(true));
     }
 }

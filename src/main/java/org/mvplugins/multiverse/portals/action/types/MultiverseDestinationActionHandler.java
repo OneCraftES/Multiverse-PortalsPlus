@@ -1,0 +1,47 @@
+package org.mvplugins.multiverse.portals.action.types;
+
+import com.dumptruckman.minecraft.util.Logging;
+import org.bukkit.entity.Entity;
+import org.bukkit.entity.Vehicle;
+import org.mvplugins.multiverse.core.destination.DestinationInstance;
+import org.mvplugins.multiverse.core.teleportation.AsyncSafetyTeleporter;
+import org.mvplugins.multiverse.core.teleportation.PassengerMode;
+import org.mvplugins.multiverse.core.teleportation.PassengerModes;
+import org.mvplugins.multiverse.core.utils.result.Attempt;
+import org.mvplugins.multiverse.portals.MVPortal;
+import org.mvplugins.multiverse.portals.action.ActionFailureReason;
+import org.mvplugins.multiverse.portals.action.ActionHandler;
+
+final class MultiverseDestinationActionHandler extends ActionHandler<MultiverseDestinationActionHandlerType, MultiverseDestinationActionHandler> {
+
+    private final AsyncSafetyTeleporter teleporter;
+    private final DestinationInstance<?, ?> destinationInstance;
+
+    MultiverseDestinationActionHandler(MultiverseDestinationActionHandlerType handlerType,
+                                       AsyncSafetyTeleporter teleporter,
+                                       DestinationInstance<?, ?> destinationInstance) {
+        super(handlerType);
+        this.teleporter = teleporter;
+        this.destinationInstance = destinationInstance;
+    }
+
+    @Override
+    public Attempt<Void, ActionFailureReason> runAction(MVPortal portal, Entity entity) {
+        teleporter.to(destinationInstance)
+                .checkSafety(portal.getCheckDestinationSafety() && destinationInstance.checkTeleportSafety())
+                .passengerMode(passengerModeFor(portal, entity))
+                .teleportSingle(entity)
+                .onFailure(reason -> Logging.warning(
+                        "Failed to teleport entity '%s' to destination '%s'. Reason: %s",
+                        entity.getName(), destinationInstance, reason)
+                );
+        return Attempt.success(null);
+    }
+
+    private PassengerMode passengerModeFor(MVPortal portal, Entity entity) {
+        if (entity instanceof Vehicle) {
+            return PassengerModes.RETAIN_ALL;
+        }
+        return portal.getTeleportNonPlayers() ? PassengerModes.RETAIN_ALL : PassengerModes.DISMOUNT_VEHICLE;
+    }
+}

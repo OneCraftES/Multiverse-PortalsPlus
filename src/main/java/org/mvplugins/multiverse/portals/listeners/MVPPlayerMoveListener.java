@@ -37,21 +37,15 @@ public final class MVPPlayerMoveListener implements Listener {
     private final MultiversePortals plugin;
     private final PortalsConfig portalsConfig;
     private final PlayerListenerHelper helper;
-    private final WorldManager worldManager;
-    private final AsyncSafetyTeleporter teleporter;
 
     @Inject
     MVPPlayerMoveListener(
             @NotNull MultiversePortals plugin,
             @NotNull PortalsConfig portalsConfig,
-            @NotNull PlayerListenerHelper helper,
-            @NotNull WorldManager worldManager,
-            @NotNull AsyncSafetyTeleporter teleporter) {
+            @NotNull PlayerListenerHelper helper) {
         this.plugin = plugin;
         this.portalsConfig = portalsConfig;
         this.helper = helper;
-        this.worldManager = worldManager;
-        this.teleporter = teleporter;
     }
 
     @EventHandler(ignoreCancelled = true, priority = EventPriority.LOW)
@@ -77,23 +71,8 @@ public final class MVPPlayerMoveListener implements Listener {
             return;
         }
 
-        DestinationInstance<?, ?> destination = portal.getDestination();
-        if (destination == null) {
-            Logging.fine("Invalid Destination!");
-            return;
-        }
         player.setFallDistance(0);
 
-        Location destLocation = destination.getLocation(player).getOrNull();
-        if (destLocation == null) {
-            Logging.fine("Unable to teleport player because destination is null!");
-            return;
-        }
-
-        if (!this.worldManager.isLoadedWorld(destLocation.getWorld())) {
-            Logging.fine("Unable to teleport player because the destination world is not managed by Multiverse!");
-            return;
-        }
         if (!portal.isFrameValid(loc)) {
             player.sendMessage("This portal's frame is made of an " + ChatColor.RED + "incorrect material. You should exit it now.");
             return;
@@ -115,7 +94,7 @@ public final class MVPPlayerMoveListener implements Listener {
         }
 
         // call event for other plugins
-        MVPortalEvent portalEvent = new MVPortalEvent(destination, event.getPlayer(), portal);
+        MVPortalEvent portalEvent = new MVPortalEvent(portal.getDestination(), event.getPlayer(), portal);
         this.plugin.getServer().getPluginManager().callEvent(portalEvent);
         if (portalEvent.isCancelled()) {
             return;
@@ -124,18 +103,7 @@ public final class MVPPlayerMoveListener implements Listener {
             helper.payPortalEntryFee(portal, player);
         }
 
-        teleporter.to(destination)
-                .checkSafety(portal.getCheckDestinationSafety() && destination.checkTeleportSafety())
-                .passengerMode(portal.getTeleportNonPlayers() ? PassengerModes.RETAIN_ALL : PassengerModes.DISMOUNT_VEHICLE)
-                .teleportSingle(player)
-                .onSuccess(() -> {
-                    ps.playerDidTeleport(destLocation);
-                    ps.setTeleportTime(new Date());
-                    helper.stateSuccess(player.getDisplayName(), destination.toString());
-                })
-                .onFailure(reason -> Logging.fine(
-                        "Failed to teleport player '%s' to destination '%s'. Reason: %s",
-                        player.getDisplayName(), destination, reason)
-                );
+        Logging.fine("[PlayerMoveEvent] Portal action for player: " + player);
+        portal.runActionFor(player);
     }
 }

@@ -8,6 +8,7 @@
 package org.mvplugins.multiverse.portals.listeners;
 
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.List;
 
 import com.dumptruckman.minecraft.util.Logging;
@@ -101,14 +102,9 @@ public final class MVPVehicleListener implements Listener {
             }
         }
 
-        DestinationInstance<?, ?> destination = portal.getDestination();
-        safetyTeleporter.to(destination)
-                .checkSafety(portal.getCheckDestinationSafety() && destination.checkTeleportSafety())
-                .passengerMode(PassengerModes.RETAIN_ALL)
-                .teleportSingle(vehicle)
-                .onSuccess(() -> Logging.finer("Successfully teleported vehicle %s using portal %s",
-                        vehicle.getName(), portal.getName()))
-                .onFailure(failures -> Logging.finer("Failed to teleport vehicle %s using portal %s. Failures: %s",
-                        vehicle.getName(), portal.getName(), failures));
+        Logging.fine("[VehicleMoveEvent] Portal action for vehicle: " + vehicle);
+        portal.runActionFor(vehicle)
+                .onSuccess(() -> playerPassengers.forEach(player ->
+                        plugin.getPortalSession(player).setTeleportTime(new Date())));
     }
 }

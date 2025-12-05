@@ -1,5 +1,6 @@
 package org.mvplugins.multiverse.portals.listeners;
 
+import com.dumptruckman.minecraft.util.Logging;
 import io.papermc.paper.event.entity.EntityMoveEvent;
 import org.bukkit.Location;
 import org.bukkit.entity.LivingEntity;
@@ -20,17 +21,14 @@ public final class MVPEntityMoveListener implements Listener {
 
     private final PlayerListenerHelper helper;
     private final PortalManager portalManager;
-    private final AsyncSafetyTeleporter teleporter;
     private final PortalsConfig portalsConfig;
 
     @Inject
     MVPEntityMoveListener(@NotNull PlayerListenerHelper helper,
                           @NotNull PortalManager portalManager,
-                          @NotNull AsyncSafetyTeleporter teleporter,
                           @NotNull PortalsConfig portalsConfig) {
         this.helper = helper;
         this.portalManager = portalManager;
-        this.teleporter = teleporter;
         this.portalsConfig = portalsConfig;
     }
 
@@ -50,14 +48,6 @@ public final class MVPEntityMoveListener implements Listener {
             return;
         }
 
-        DestinationInstance<?, ?> destination = portal.getDestination();
-        if  (destination == null) {
-            return;
-        }
-
-        teleporter.to(destination)
-                .checkSafety(portal.getCheckDestinationSafety() && destination.checkTeleportSafety())
-                .passengerMode(PassengerModes.RETAIN_ALL)
-                .teleportSingle(entity);
+        portal.runActionFor(entity);
     }
 }
