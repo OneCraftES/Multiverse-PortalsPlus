@@ -7,10 +7,7 @@ import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.player.PlayerPortalEvent;
 import org.jvnet.hk2.annotations.Service;
-import org.mvplugins.multiverse.core.destination.DestinationInstance;
-import org.mvplugins.multiverse.core.teleportation.AsyncSafetyTeleporter;
 import org.mvplugins.multiverse.core.teleportation.BlockSafety;
-import org.mvplugins.multiverse.core.teleportation.PassengerModes;
 import org.mvplugins.multiverse.core.world.WorldManager;
 import org.mvplugins.multiverse.external.jakarta.inject.Inject;
 import org.mvplugins.multiverse.external.jetbrains.annotations.NotNull;
@@ -18,6 +15,7 @@ import org.mvplugins.multiverse.portals.MVPortal;
 import org.mvplugins.multiverse.portals.MultiversePortals;
 import org.mvplugins.multiverse.portals.PortalPlayerSession;
 import org.mvplugins.multiverse.portals.config.PortalsConfig;
+import org.mvplugins.multiverse.portals.enums.MoveType;
 import org.mvplugins.multiverse.portals.event.MVPortalEvent;
 import org.mvplugins.multiverse.portals.utils.PortalManager;
 
@@ -27,26 +25,20 @@ final class MVPPlayerPortalListener implements PortalsListener {
     private final PortalManager portalManager;
     private final PortalsConfig portalsConfig;
     private final BlockSafety blockSafety;
-    private final WorldManager worldManager;
     private final MultiversePortals plugin;
-    private final PlayerListenerHelper helper;
-    private final AsyncSafetyTeleporter teleporter;
+    private final PortalListenerHelper helper;
 
     @Inject
     MVPPlayerPortalListener(@NotNull PortalManager portalManager,
                             @NotNull PortalsConfig portalsConfig,
                             @NotNull BlockSafety blockSafety,
-                            @NotNull WorldManager worldManager,
                             @NotNull MultiversePortals plugin,
-                            @NotNull PlayerListenerHelper helper,
-                            @NotNull AsyncSafetyTeleporter teleporter) {
+                            @NotNull PortalListenerHelper helper) {
         this.portalManager = portalManager;
         this.portalsConfig = portalsConfig;
         this.blockSafety = blockSafety;
-        this.worldManager = worldManager;
         this.plugin = plugin;
         this.helper = helper;
-        this.teleporter = teleporter;
     }
 
     @EventHandler(ignoreCancelled = true)
@@ -72,58 +64,32 @@ final class MVPPlayerPortalListener implements PortalsListener {
         }
 
         Logging.finer("There was a portal found!");
-        DestinationInstance<?, ?> portalDest = portal.getDestination();
-        if (portalDest == null) {
-            if (!portalsConfig.getPortalsDefaultToNether()) {
-                // If portals should not default to the nether, cancel the event
-                player.sendMessage(String.format(
-                        "This portal %sdoesn't go anywhere. You should exit it now.", ChatColor.RED));
-                Logging.fine("Event canceled because this was a MVPortal with an invalid destination. But you had 'portalsdefaulttonether' set to false!");
-                event.setCancelled(true);
-            }
-            return;
+        if (!portalsConfig.getPortalsDefaultToNether()) {
+            event.setCancelled(true);
         }
-
-        // this is a valid MV Portal, so we'll cancel the event
-        event.setCancelled(true);
 
         if (!portal.isFrameValid(playerPortalLoc)) {
             player.sendMessage("This portal's frame is made of an " + ChatColor.RED + "incorrect material." + ChatColor.RED + " You should exit it now.");
+            event.setCancelled(true);
             return;
-        }
-
-        Location destLocation = portalDest.getLocation(player).getOrNull();
-        if (destLocation == null) {
-            Logging.fine("Unable to teleport player because destination is null!");
-            return;
-        }
-
-        if (!this.worldManager.isLoadedWorld(destLocation.getWorld())) {
-            Logging.fine("Unable to teleport player because the destination world is not managed by Multiverse!");
-            return;
-        }
-
-        if (portal.getCheckDestinationSafety() && portalDest.checkTeleportSafety()) {
-            Location safeLocation = blockSafety.findSafeSpawnLocation(portalDest.getLocation(player).getOrNull());
-            if (safeLocation == null) {
-                Logging.warning("Portal " + portal.getName() + " destination is not safe!");
-                player.sendMessage(ChatColor.RED + "Portal " + portal.getName() + " destination is not safe!");
-                return;
-            }
-            destLocation = safeLocation;
         }
 
         PortalPlayerSession ps = this.plugin.getPortalSession(player);
+        ps.setStaleLocation(playerPortalLoc, MoveType.PLAYER_MOVE);
+        if (ps.showDebugInfo()) {
+            event.setCancelled(true);
+            return;
+        }
         if (ps.checkAndSendCooldownMessage()) {
             Logging.fine("Player denied teleportation due to cooldown.");
             return;
         }
-        PlayerListenerHelper.PortalUseResult portalUseResult = helper.checkPlayerCanUsePortal(portal, player);
+        PortalListenerHelper.PortalUseResult portalUseResult = helper.checkPlayerCanUsePortal(portal, player);
         if (!portalUseResult.canUse()) {
             return;
         }
 
-        MVPortalEvent portalEvent = new MVPortalEvent(portalDest, player, portal);
+        MVPortalEvent portalEvent = new MVPortalEvent(portal.getDestination(), player, portal);
         this.plugin.getServer().getPluginManager().callEvent(portalEvent);
 
         if (portalEvent.isCancelled()) {
@@ -134,9 +100,11 @@ final class MVPPlayerPortalListener implements PortalsListener {
             helper.payPortalEntryFee(portal, player);
         }
 
-        teleporter.to(destLocation)
-                .passengerMode(portal.getTeleportNonPlayers() ? PassengerModes.RETAIN_ALL : PassengerModes.DISMOUNT_VEHICLE)
-                .teleportSingle(player)
-                .onFailure(() -> Logging.warning("Could not teleport to destination!"));
+        Logging.fine("[PlayerPortalEvent] Portal action for player: " + player);
+        helper.stateSuccess(player.getDisplayName(), portal.getName());
+        portal.runActionFor(player)
+                .onSuccess(() -> {
+                    event.setCancelled(true);
+                });
     }
 }
