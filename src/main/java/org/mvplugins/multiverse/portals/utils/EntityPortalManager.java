@@ -12,11 +12,16 @@ import org.mvplugins.multiverse.core.destination.DestinationInstance;
 import org.mvplugins.multiverse.external.jakarta.inject.Inject;
 import org.mvplugins.multiverse.portals.MVPortal;
 
+import org.mvplugins.multiverse.portals.MultiversePortals;
+
 @Service
 public class EntityPortalManager {
 
+    private final MultiversePortals plugin;
+
     @Inject
-    public EntityPortalManager() {
+    public EntityPortalManager(MultiversePortals plugin) {
+        this.plugin = plugin;
     }
 
     public boolean teleportEntity(Entity entity, MVPortal portal) {
@@ -66,11 +71,23 @@ public class EntityPortalManager {
         }
         vehicle.setVelocity(velocity);
 
-        // 3. Teleport and remount passengers
+        // 3. Teleport passengers
         for (Entity passenger : passengers) {
             passenger.teleport(targetLocation);
-            vehicle.addPassenger(passenger);
         }
+
+        // 4. Remount passengers (Delayed to ensure entities are ready)
+        this.plugin.getServer().getScheduler().runTaskLater(this.plugin, () -> {
+            // Re-validate entities before remounting
+            if (!vehicle.isValid())
+                return;
+
+            for (Entity passenger : passengers) {
+                if (passenger.isValid()) {
+                    vehicle.addPassenger(passenger);
+                }
+            }
+        }, 2L);
 
         return true;
     }

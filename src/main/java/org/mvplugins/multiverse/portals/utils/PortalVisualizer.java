@@ -101,22 +101,12 @@ public class PortalVisualizer {
 
         Vector min = region.getMinimumPoint();
         Vector max = region.getMaximumPoint();
-        double heightOffset = calculateHeightOffset(min, max); // Using fixed logic or config? Decompiled used logic but
-                                                               // also config had height offset.
-        // The decompiled code calculated dynamicHeightOffset but also read
-        // "particles.circle.height".
-        // Let's use the config value as a base or modifier?
-        // Decompiled code: line 149 double dynamicHeightOffset =
-        // this.calculateHeightOffset(min, max);
-        // It completely ignored `this.heightOffset` (config value) which was read at
-        // line 79.
-        // I'll stick to the dynamic offset logic from decompiled code for now as it
-        // seems intentional.
+        double heightOffset = calculateHeightOffset(min, max);
 
         Location center = new Location(region.getWorld().getBukkitWorld().getOrNull(),
-                (max.getX() + min.getX()) / 2.0,
+                (max.getX() + min.getX()) / 2.0 + 0.5,
                 min.getY(),
-                (max.getZ() + min.getZ()) / 2.0);
+                (max.getZ() + min.getZ()) / 2.0 + 0.5);
         center.add(0.0, heightOffset, 0.0);
 
         Color colorPrimary = parseColor(portal.getParticleColorPrimary(), DEFAULT_PRIMARY);
@@ -158,9 +148,9 @@ public class PortalVisualizer {
         Vector min = region.getMinimumPoint();
         Vector max = region.getMaximumPoint();
         Location center = new Location(region.getWorld().getBukkitWorld().getOrNull(),
-                (max.getX() + min.getX()) / 2.0,
+                (max.getX() + min.getX()) / 2.0 + 0.5,
                 min.getY() + calculateHeightOffset(min, max),
-                (max.getZ() + min.getZ()) / 2.0);
+                (max.getZ() + min.getZ()) / 2.0 + 0.5);
 
         Color color = getEntityColor(entity, portal);
         this.portalColors.put(portal, color);
@@ -201,9 +191,6 @@ public class PortalVisualizer {
         if (!portal.getParticlesEnabled() || destination == null)
             return;
 
-        // Assuming we can get configs from portal passed in, or default if portal logic
-        // is handled elsewhere.
-        // Pass MVPortal to this method? Yes.
         Color color = getEntityColor(sourceEntity, portal);
         double particleSize = portal.getParticleCircleSize();
 
