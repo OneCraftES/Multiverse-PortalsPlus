@@ -40,25 +40,18 @@ class ModifyCommand extends PortalsCommand {
     public void onModifyCommand(
             MVCommandIssuer issuer,
 
-            @Flags("resolve=issuerAware")
-            @Syntax("[portal]")
-            @Description("The portal to modify.")
-            MVPortal portal,
+            @Flags("resolve=issuerAware") @Syntax("[portal]") @Description("The portal to modify.") MVPortal portal,
 
-            @Syntax("<property>")
-            @Description("The property to modify.")
-            String property,
+            @Syntax("<property>") @Description("The property to modify.") String property,
 
-            @Single
-            @Syntax("<value>")
-            @Description("The value to set.")
-            String value
-    ) {
-        //todo: remove this in 6.0
+            @Single @Syntax("<value>") @Description("The value to set.") String value) {
+        // todo: remove this in 6.0
         if (property.equalsIgnoreCase("dest") || property.equalsIgnoreCase("destination")) {
             if (value.equalsIgnoreCase("here") && !worldManager.isWorld("here")) {
-                Logging.warning("Using 'here' as a destination is deprecated and will be removed in a future version. Use 'e:@here' instead.");
-                issuer.sendError("Using 'here' as a destination is deprecated and will be removed in a future version. Use 'e:@here' instead.");
+                Logging.warning(
+                        "Using 'here' as a destination is deprecated and will be removed in a future version. Use 'e:@here' instead.");
+                issuer.sendError(
+                        "Using 'here' as a destination is deprecated and will be removed in a future version. Use 'e:@here' instead.");
                 value = "e:@here";
             }
         }
@@ -68,6 +61,8 @@ class ModifyCommand extends PortalsCommand {
         stringPropertyHandle.setPropertyString(issuer.getIssuer(), property, value)
                 .onSuccess(ignore -> {
                     this.plugin.savePortalsConfig();
+                    this.plugin.getServer().getPluginManager()
+                            .callEvent(new org.mvplugins.multiverse.portals.event.MVPortalModifiedEvent(portal));
                     issuer.sendMessage(ChatColor.GREEN + "Property " + ChatColor.AQUA + property + ChatColor.GREEN
                             + " of Portal " + ChatColor.YELLOW + portal.getName() + ChatColor.GREEN + " was set to "
                             + ChatColor.AQUA + stringPropertyHandle.getProperty(property).getOrNull());

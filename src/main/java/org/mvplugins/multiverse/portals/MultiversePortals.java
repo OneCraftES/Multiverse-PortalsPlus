@@ -156,6 +156,7 @@ public class MultiversePortals extends MultiverseModule {
         pluginManager.registerEvents(serviceLocator.getService(MVPProjectileListener.class), this);
         // Register Normal Entity Listeners
         pluginManager.registerEvents(serviceLocator.getService(MVPEntityListener.class), this);
+        pluginManager.registerEvents(serviceLocator.getService(PortalVisualizerListener.class), this);
         // MVPEntityMoveListener does not need event registration as it runs a task,
         // but we might want to ensure it is created/started by getting it from
         // serviceLocator.

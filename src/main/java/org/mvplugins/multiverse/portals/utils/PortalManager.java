@@ -33,7 +33,6 @@ import org.mvplugins.multiverse.portals.MultiversePortals;
 import org.mvplugins.multiverse.portals.PortalLocation;
 import org.mvplugins.multiverse.portals.config.PortalsConfig;
 
-
 /**
  * Manages all portals for all worlds.
  *
@@ -55,8 +54,8 @@ public class PortalManager {
 
     @Inject
     PortalManager(@NotNull MultiversePortals plugin,
-                  @NotNull WorldManager worldManager,
-                  @NotNull PortalsConfig portalsConfig) {
+            @NotNull WorldManager worldManager,
+            @NotNull PortalsConfig portalsConfig) {
         this.plugin = plugin;
         this.worldManager = worldManager;
         this.portalsConfig = portalsConfig;
@@ -65,10 +64,11 @@ public class PortalManager {
     }
 
     /**
-     * Method that checks to see if a player is inside a portal that they have permission to use.
+     * Method that checks to see if a player is inside a portal that they have
+     * permission to use.
      *
-     * @param sender    The sender to check.
-     * @param l         The location they're standing.
+     * @param sender The sender to check.
+     * @param l      The location they're standing.
      *
      * @return A MVPortal if it's valid, null if not.
      */
@@ -77,12 +77,14 @@ public class PortalManager {
     }
 
     /**
-     * Method that checks to see if a player is inside a portal and optionally ensure they have
+     * Method that checks to see if a player is inside a portal and optionally
+     * ensure they have
      * permission to use.
      *
-     * @param sender            The sender to check.
-     * @param l                 The location they're standing.
-     * @param checkPermission   The {@link MVPortal} is returned only if player has permission to access it.
+     * @param sender          The sender to check.
+     * @param l               The location they're standing.
+     * @param checkPermission The {@link MVPortal} is returned only if player has
+     *                        permission to access it.
      *
      * @return A MVPortal if it's valid, null if not.
      */
@@ -105,8 +107,10 @@ public class PortalManager {
 
         return null;
     }
+
     /**
      * Deprecated, use getPortal instead.
+     * 
      * @deprecated
      */
     @Deprecated
@@ -115,7 +119,8 @@ public class PortalManager {
     }
 
     /**
-     * Simplified method for seeing if someone is in a portal. We'll check perms later.
+     * Simplified method for seeing if someone is in a portal. We'll check perms
+     * later.
      *
      * @param l The location of the player
      *
@@ -128,6 +133,7 @@ public class PortalManager {
     /**
      * Return a portal at a location.
      * NOTE: If there are more than one portal, order is effectively indeterminate.
+     * 
      * @param l The location to check at
      * @return Null if no portal found, otherwise the MVPortal at that location.
      */
@@ -158,12 +164,14 @@ public class PortalManager {
         }
         return false;
     }
-    
+
     // Add a portal whose name is already known to be unique.
     private void addUniquePortal(MultiverseWorld world, String name, MVPortal portal) {
         this.portals.put(name, portal);
         this.plugin.savePortalsConfig();
         addToWorldChunkPortals(world, portal);
+        this.plugin.getServer().getPluginManager()
+                .callEvent(new org.mvplugins.multiverse.portals.event.MVPortalCreatedEvent(portal));
     }
 
     public MVPortal removePortal(String portalName, boolean removeFromConfigs) {
@@ -185,8 +193,10 @@ public class PortalManager {
         removeFromWorldChunkPortals(world, removed);
 
         removed.removePermission();
-        Permission portalAccess = this.plugin.getServer().getPluginManager().getPermission("multiverse.portal.access.*");
-        Permission exemptAccess = this.plugin.getServer().getPluginManager().getPermission("multiverse.portal.exempt.*");
+        Permission portalAccess = this.plugin.getServer().getPluginManager()
+                .getPermission("multiverse.portal.access.*");
+        Permission exemptAccess = this.plugin.getServer().getPluginManager()
+                .getPermission("multiverse.portal.exempt.*");
         Permission portalFill = this.plugin.getServer().getPluginManager().getPermission("multiverse.portal.fill.*");
         if (exemptAccess != null) {
             exemptAccess.getChildren().remove(removed.getExempt().getName());
@@ -213,11 +223,14 @@ public class PortalManager {
         this.plugin.getServer().getPluginManager().removePermission(removed.getPermission());
         this.plugin.getServer().getPluginManager().removePermission(removed.getExempt());
         this.plugin.getServer().getPluginManager().removePermission(removed.getFillPermission());
+        this.plugin.getServer().getPluginManager()
+                .callEvent(new org.mvplugins.multiverse.portals.event.MVPortalRemovedEvent(removed));
         return removed;
     }
 
     private void recalculatePermissions() {
-        String[] permissionsNames = new String[] { "multiverse.portal.access.*", "multiverse.portal.exempt.*", "multiverse.portal.fill.*" };
+        String[] permissionsNames = new String[] { "multiverse.portal.access.*", "multiverse.portal.exempt.*",
+                "multiverse.portal.fill.*" };
         for (String permissionName : permissionsNames) {
             Permission permission = this.plugin.getServer().getPluginManager().getPermission(permissionName);
             this.plugin.getServer().getPluginManager().recalculatePermissionDefaults(permission);
@@ -283,7 +296,8 @@ public class PortalManager {
     }
 
     /**
-     * Gets a portal with a commandsender and a name. Used as a convenience for portal listing methods
+     * Gets a portal with a commandsender and a name. Used as a convenience for
+     * portal listing methods
      *
      * @param portalName
      * @param sender
@@ -308,8 +322,9 @@ public class PortalManager {
         }
         recalculatePermissions();
     }
-    
-    private void replaceInRegion(World world, MultiverseRegion removedRegion, Material oldMaterial, Material newMaterial) {
+
+    private void replaceInRegion(World world, MultiverseRegion removedRegion, Material oldMaterial,
+            Material newMaterial) {
         // Determine the bounds of the region.
         Vector min = removedRegion.getMinimumPoint();
         Vector max = removedRegion.getMaximumPoint();
@@ -327,7 +342,7 @@ public class PortalManager {
             }
         }
     }
-    
+
     private int blockToChunk(int b) {
         // A block at -5 should be in chunk -1 instead of chunk 0.
         if (b < 0) {
@@ -335,11 +350,11 @@ public class PortalManager {
         }
         return b / 16;
     }
-    
+
     private int hashChunk(int cx, int cz) {
         return (cx << 16) | (cz & 0xFFFF);
     }
-    
+
     private void addToWorldChunkPortals(MultiverseWorld world, MVPortal portal) {
 
         Map<Integer, Collection<MVPortal>> chunksToPortals = this.worldChunkPortals.get(world);
@@ -370,7 +385,7 @@ public class PortalManager {
             }
         }
     }
-    
+
     private void removeFromWorldChunkPortals(MultiverseWorld world, MVPortal portal) {
         Map<Integer, Collection<MVPortal>> chunksToPortals = this.worldChunkPortals.get(world);
 
