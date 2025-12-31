@@ -12,50 +12,44 @@ import java.util.List;
 
 import com.dumptruckman.minecraft.util.Logging;
 import org.bukkit.Material;
-import org.bukkit.event.Listener;
-import org.mvplugins.multiverse.core.destination.DestinationInstance;
-import org.mvplugins.multiverse.core.economy.MVEconomist;
-import org.mvplugins.multiverse.core.permissions.CorePermissionsChecker;
-import org.mvplugins.multiverse.core.teleportation.LocationManipulation;
-import org.mvplugins.multiverse.core.teleportation.AsyncSafetyTeleporter;
-import org.mvplugins.multiverse.core.teleportation.PassengerModes;
-import org.mvplugins.multiverse.external.jakarta.inject.Inject;
-import org.mvplugins.multiverse.external.jetbrains.annotations.NotNull;
-import org.jvnet.hk2.annotations.Service;
-import org.mvplugins.multiverse.portals.config.PortalsConfig;
-import org.mvplugins.multiverse.portals.enums.MoveType;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.Player;
 import org.bukkit.entity.Vehicle;
 import org.bukkit.event.EventHandler;
+import org.bukkit.event.Listener;
 import org.bukkit.event.vehicle.VehicleMoveEvent;
-
+import org.jvnet.hk2.annotations.Service;
+import org.mvplugins.multiverse.core.economy.MVEconomist;
+import org.mvplugins.multiverse.external.jakarta.inject.Inject;
+import org.mvplugins.multiverse.external.jetbrains.annotations.NotNull;
 import org.mvplugins.multiverse.portals.MVPortal;
 import org.mvplugins.multiverse.portals.MultiversePortals;
 import org.mvplugins.multiverse.portals.PortalPlayerSession;
+import org.mvplugins.multiverse.portals.config.PortalsConfig;
+import org.mvplugins.multiverse.portals.enums.MoveType;
+import org.mvplugins.multiverse.portals.utils.EntityPortalManager;
 import org.mvplugins.multiverse.portals.utils.PortalManager;
 
 @Service
 public class MVPVehicleListener implements Listener {
     private final MultiversePortals plugin;
     private final PortalManager portalManager;
-    private final AsyncSafetyTeleporter safetyTeleporter;
     private final PortalsConfig portalsConfig;
     private final MVEconomist economist;
+    private final EntityPortalManager entityPortalManager;
 
     @Inject
     MVPVehicleListener(
             @NotNull MultiversePortals plugin,
             @NotNull PortalManager portalManager,
-            @NotNull AsyncSafetyTeleporter safetyTeleporter,
             @NotNull PortalsConfig portalsConfig,
-            @NotNull MVEconomist economist
-    ) {
+            @NotNull MVEconomist economist,
+            @NotNull EntityPortalManager entityPortalManager) {
         this.plugin = plugin;
         this.portalManager = portalManager;
-        this.safetyTeleporter = safetyTeleporter;
         this.portalsConfig = portalsConfig;
         this.economist = economist;
+        this.entityPortalManager = entityPortalManager;
     }
 
     @EventHandler
@@ -102,20 +96,18 @@ public class MVPVehicleListener implements Listener {
             }
         }
 
-        DestinationInstance<?, ?> destination = portal.getDestination();
-        safetyTeleporter.to(destination)
-                .checkSafety(portal.getCheckDestinationSafety() && destination.checkTeleportSafety())
-                .passengerMode(PassengerModes.RETAIN_ALL)
-                .teleportSingle(vehicle)
-                .onSuccess(() -> Logging.finer("Successfully teleported vehicle %s using portal %s",
-                        vehicle.getName(), portal.getName()))
-                .onFailure(failures -> Logging.finer("Failed to teleport vehicle %s using portal %s. Failures: %s",
-                        vehicle.getName(), portal.getName(), failures));
+        // Use EntityPortalManager for robust vehicle teleportation
+        if (this.entityPortalManager.teleportEntity(vehicle, portal)) {
+            Logging.finer("Successfully teleported vehicle %s using portal %s", vehicle.getName(), portal.getName());
+        } else {
+            Logging.finer("Failed to teleport vehicle %s using portal %s", vehicle.getName(), portal.getName());
+        }
     }
 
     // todo: this logic is duplicated in multiple places
     private boolean checkPlayerCanUsePortal(MVPortal portal, Player player) {
-        // If they're using Access and they don't have permission and they're NOT exempt, return, they're not allowed to tp.
+        // If they're using Access and they don't have permission and they're NOT
+        // exempt, return, they're not allowed to tp.
         // No longer checking exemption status
         if (portalsConfig.getEnforcePortalAccess() && !player.hasPermission(portal.getPermission())) {
 
@@ -131,7 +123,8 @@ public class MVPVehicleListener implements Listener {
             shouldPay = true;
             if (price > 0D && !economist.isPlayerWealthyEnough(player, price, currency)) {
                 player.sendMessage(economist.getNSFMessage(currency,
-                        "You need " + economist.formatPrice(price, currency) + " to enter the " + portal.getName() + " portal."));
+                        "You need " + economist.formatPrice(price, currency) + " to enter the " + portal.getName()
+                                + " portal."));
                 return false;
             }
         }

@@ -74,7 +74,8 @@ public final class MVPortal {
     private Permission fillPermission;
     private Permission exempt;
 
-    public MVPortal(LoadedMultiverseWorld world, MultiversePortals instance, String name, String owner, String location) {
+    public MVPortal(LoadedMultiverseWorld world, MultiversePortals instance, String name, String owner,
+            String location) {
         this(instance, name);
         this.setOwner(owner);
         this.setPortalLocation(location, world);
@@ -124,20 +125,26 @@ public final class MVPortal {
         this.stringPropertyHandle = new StringPropertyHandle(this.configHandle);
         configHandle.load();
 
-        this.permission = this.plugin.getServer().getPluginManager().getPermission("multiverse.portal.access." + this.name);
+        this.permission = this.plugin.getServer().getPluginManager()
+                .getPermission("multiverse.portal.access." + this.name);
         if (this.permission == null) {
-            this.permission = new Permission("multiverse.portal.access." + this.name, "Allows access to the " + this.name + " portal", PermissionDefault.OP);
+            this.permission = new Permission("multiverse.portal.access." + this.name,
+                    "Allows access to the " + this.name + " portal", PermissionDefault.OP);
             this.plugin.getServer().getPluginManager().addPermission(this.permission);
         }
 
-        this.fillPermission = this.plugin.getServer().getPluginManager().getPermission("multiverse.portal.fill." + this.name);
+        this.fillPermission = this.plugin.getServer().getPluginManager()
+                .getPermission("multiverse.portal.fill." + this.name);
         if (this.fillPermission == null) {
-            this.fillPermission = new Permission("multiverse.portal.fill." + this.name, "Allows filling the " + this.name + " portal", PermissionDefault.OP);
+            this.fillPermission = new Permission("multiverse.portal.fill." + this.name,
+                    "Allows filling the " + this.name + " portal", PermissionDefault.OP);
             this.plugin.getServer().getPluginManager().addPermission(this.fillPermission);
         }
         this.exempt = this.plugin.getServer().getPluginManager().getPermission("multiverse.portal.exempt." + this.name);
         if (exempt == null) {
-            this.exempt = new Permission("multiverse.portal.exempt." + this.name, "A player who has this permission will not pay to use this portal " + this.name + " portal", PermissionDefault.FALSE);
+            this.exempt = new Permission("multiverse.portal.exempt." + this.name,
+                    "A player who has this permission will not pay to use this portal " + this.name + " portal",
+                    PermissionDefault.FALSE);
             this.plugin.getServer().getPluginManager().addPermission(this.exempt);
         }
     }
@@ -272,7 +279,8 @@ public final class MVPortal {
     }
 
     public boolean setDestination(String destinationString) {
-        DestinationInstance<?, ?> newDestination = this.destinationsProvider.parseDestination(destinationString).getOrNull();
+        DestinationInstance<?, ?> newDestination = this.destinationsProvider.parseDestination(destinationString)
+                .getOrNull();
         return setDestination(newDestination);
     }
 
@@ -286,8 +294,8 @@ public final class MVPortal {
 
     public DestinationInstance<?, ?> getDestination() {
         return this.destinationsProvider.parseDestination(this.configHandle.get(configNodes.destination))
-                .onFailure(f ->
-                        Logging.warning("Portal " + this.name + " has an invalid DESTINATION! " + f.getFailureMessage().formatted()))
+                .onFailure(f -> Logging.warning(
+                        "Portal " + this.name + " has an invalid DESTINATION! " + f.getFailureMessage().formatted()))
                 .getOrNull();
     }
 
@@ -322,7 +330,8 @@ public final class MVPortal {
         double finalX = (portalWidth / 2.0) + pl.getMinimum().getBlockX();
         // double finalY = pl.getMinimum().getBlockY();
         double finalZ = (portalDepth / 2.0) + pl.getMinimum().getBlockZ();
-        double finalY = this.getMinimumWith2Air((int) finalX, (int) finalZ, pl.getMinimum().getBlockY(), pl.getMaximum().getBlockY(), this.getWorld());
+        double finalY = this.getMinimumWith2Air((int) finalX, (int) finalZ, pl.getMinimum().getBlockY(),
+                pl.getMaximum().getBlockY(), this.getWorld());
         return new Location(this.getWorld(), finalX, finalY, finalZ);
     }
 
@@ -357,7 +366,8 @@ public final class MVPortal {
 
     /**
      * Returns what type of portal this is.
-     * This will be {@link PortalType#Normal} for portals filled with the nether portal block,
+     * This will be {@link PortalType#Normal} for portals filled with the nether
+     * portal block,
      * and {@link PortalType#Legacy} for portals filled with anything else.
      *
      * @return The type of this portal.
@@ -367,14 +377,16 @@ public final class MVPortal {
         if (this.getFillMaterial() == Material.NETHER_PORTAL) {
             return PortalType.Normal;
         }
-        // TODO in 5.0.0: Catch IllegalStateException and return a new PortalType, INVALID.
+        // TODO in 5.0.0: Catch IllegalStateException and return a new PortalType,
+        // INVALID.
         return PortalType.Legacy;
     }
 
     /**
      * Returns whether this portal is of the {@link PortalType#Legacy} type.
      *
-     * @return True if and only if this portal is of the {@link PortalType#Legacy} type, false otherwise.
+     * @return True if and only if this portal is of the {@link PortalType#Legacy}
+     *         type, false otherwise.
      * @throws IllegalStateException If this portal's location is no longer valid.
      */
     public boolean isLegacyPortal() throws IllegalStateException {
@@ -434,9 +446,9 @@ public final class MVPortal {
         boolean frameValid = false;
         {
             MultiverseRegion r = getPortalLocation().getRegion();
-            int useX = (r.getWidth()  == 1) ? 0 : 1;
+            int useX = (r.getWidth() == 1) ? 0 : 1;
             int useY = (r.getHeight() == 1) ? 0 : 1;
-            int useZ = (r.getDepth()  == 1) ? 0 : 1;
+            int useZ = (r.getDepth() == 1) ? 0 : 1;
 
             // Search for a frame in each of the portal's "flat" (size 1)
             // dimensions. If a portal's size is greater than 1 in all three
@@ -464,15 +476,16 @@ public final class MVPortal {
      * Examines a frame around a location, bounded by a search region which has
      * one dimension of size 1 and two dimensions which of size greater than
      * one.
+     * 
      * @param location
      * @param searchRegion
      * @return
      */
     private boolean isFrameValid(Location location, MultiverseRegion searchRegion) {
 
-        int useX = (searchRegion.getWidth()  == 1) ? 0 : 1;
+        int useX = (searchRegion.getWidth() == 1) ? 0 : 1;
         int useY = (searchRegion.getHeight() == 1) ? 0 : 1;
-        int useZ = (searchRegion.getDepth()  == 1) ? 0 : 1;
+        int useZ = (searchRegion.getDepth() == 1) ? 0 : 1;
 
         // Make sure the search region is flat in exactly one dimension.
         if (useX + useY + useZ != 2) {
@@ -523,15 +536,13 @@ public final class MVPortal {
                         }
                     }
                 }
-            }
-            else {
+            } else {
                 // This is a frame block. Check its material.
                 Material material = toCheck.getBlock().getType();
                 if (commonMaterial == null) {
                     // This is the first frame block we've found.
                     commonMaterial = material;
-                }
-                else if (commonMaterial != material) {
+                } else if (commonMaterial != material) {
                     // This frame block doesn't match other frame blocks.
                     Logging.finer("frame has multiple materials");
                     return false;
@@ -547,7 +558,7 @@ public final class MVPortal {
         Vector min = new Vector().copy(r.getMinimumPoint());
         Vector max = new Vector().copy(r.getMaximumPoint());
         min.add(new Vector(-x, -y, -z));
-        max.add(new Vector( x,  y,  z));
+        max.add(new Vector(x, y, z));
         return new MultiverseRegion(min, max, r.getWorld());
     }
 
@@ -556,7 +567,7 @@ public final class MVPortal {
     /**
      * @deprecated Use {@link MVPortal#getStringPropertyHandle()} instead.
      */
-    @Deprecated(since = "5.1" , forRemoval = true)
+    @Deprecated(since = "5.1", forRemoval = true)
     @ApiStatus.ScheduledForRemoval(inVersion = "6.0")
     public boolean setProperty(String property, String value) {
         return this.stringPropertyHandle.setPropertyString(property, value).isSuccess();
@@ -565,7 +576,7 @@ public final class MVPortal {
     /**
      * @deprecated Busscript feature has been removed.
      */
-    @Deprecated(since = "5.1" , forRemoval = true)
+    @Deprecated(since = "5.1", forRemoval = true)
     @ApiStatus.ScheduledForRemoval(inVersion = "6.0")
     public String getHandlerScript() {
         Logging.warning("handle script is deprecated");
@@ -575,7 +586,7 @@ public final class MVPortal {
     /**
      * @deprecated Busscript feature has been removed.
      */
-    @Deprecated(since = "5.1" , forRemoval = true)
+    @Deprecated(since = "5.1", forRemoval = true)
     @ApiStatus.ScheduledForRemoval(inVersion = "6.0")
     public void setHandlerScript(String handlerScript) {
         Logging.warning("handle script is deprecated");
@@ -584,7 +595,7 @@ public final class MVPortal {
     /**
      * @deprecated This feature has been removed.
      */
-    @Deprecated(since = "5.1" , forRemoval = true)
+    @Deprecated(since = "5.1", forRemoval = true)
     @ApiStatus.ScheduledForRemoval(inVersion = "6.0")
     public boolean isExempt(Player player) {
         return false;
@@ -597,5 +608,103 @@ public final class MVPortal {
     @ApiStatus.ScheduledForRemoval(inVersion = "6.0")
     public PortalLocation getLocation() {
         return getPortalLocation();
+    }
+
+    // Particle Configuration Getters/Setters
+
+    public boolean getParticlesEnabled() {
+        return this.configHandle.get(configNodes.particlesEnabled);
+    }
+
+    public void setParticlesEnabled(boolean enabled) {
+        this.configHandle.set(configNodes.particlesEnabled, enabled);
+    }
+
+    public double getParticleCircleRadius() {
+        return this.configHandle.get(configNodes.particleCircleRadius);
+    }
+
+    public void setParticleCircleRadius(double radius) {
+        this.configHandle.set(configNodes.particleCircleRadius, radius);
+    }
+
+    public int getParticleCircleCount() {
+        return this.configHandle.get(configNodes.particleCircleCount);
+    }
+
+    public void setParticleCircleCount(int count) {
+        this.configHandle.set(configNodes.particleCircleCount, count);
+    }
+
+    public double getParticleCircleSize() {
+        return this.configHandle.get(configNodes.particleCircleSize);
+    }
+
+    public void setParticleCircleSize(double size) {
+        this.configHandle.set(configNodes.particleCircleSize, size);
+    }
+
+    public double getParticleCircleHeight() {
+        return this.configHandle.get(configNodes.particleCircleHeight);
+    }
+
+    public void setParticleCircleHeight(double height) {
+        this.configHandle.set(configNodes.particleCircleHeight, height);
+    }
+
+    public String getParticleColorPrimary() {
+        return this.configHandle.get(configNodes.particleColorPrimary);
+    }
+
+    public void setParticleColorPrimary(String color) {
+        this.configHandle.set(configNodes.particleColorPrimary, color);
+    }
+
+    public String getParticleColorSecondary() {
+        return this.configHandle.get(configNodes.particleColorSecondary);
+    }
+
+    public void setParticleColorSecondary(String color) {
+        this.configHandle.set(configNodes.particleColorSecondary, color);
+    }
+
+    public String getParticleColorPlayer() {
+        return this.configHandle.get(configNodes.particleColorPlayer);
+    }
+
+    public void setParticleColorPlayer(String color) {
+        this.configHandle.set(configNodes.particleColorPlayer, color);
+    }
+
+    public String getParticleColorEntity() {
+        return this.configHandle.get(configNodes.particleColorEntity);
+    }
+
+    public void setParticleColorEntity(String color) {
+        this.configHandle.set(configNodes.particleColorEntity, color);
+    }
+
+    public String getParticleColorPearl() {
+        return this.configHandle.get(configNodes.particleColorPearl);
+    }
+
+    public void setParticleColorPearl(String color) {
+        this.configHandle.set(configNodes.particleColorPearl, color);
+    }
+
+    public String getParticleColorVehicle() {
+        return this.configHandle.get(configNodes.particleColorVehicle);
+    }
+
+    public void setParticleColorVehicle(String color) {
+        this.configHandle.set(configNodes.particleColorVehicle, color);
+    }
+
+    public String getParticleColorDestination() {
+        return this.configHandle.get(configNodes.particleColorDestination);
+    }
+
+    public void setParticleColorDestination(String color) {
+        this.configHandle.set(configNodes.particleColorDestination, color);
     }
 }

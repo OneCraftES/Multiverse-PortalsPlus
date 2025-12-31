@@ -48,6 +48,7 @@ import org.bukkit.plugin.Plugin;
 import org.bukkit.plugin.PluginManager;
 
 import org.mvplugins.multiverse.portals.utils.PortalManager;
+import org.mvplugins.multiverse.portals.utils.PortalVisualizer;
 
 @Service
 public class MultiversePortals extends MultiverseModule {
@@ -63,13 +64,15 @@ public class MultiversePortals extends MultiverseModule {
     @Inject
     private Provider<PortalsCommandCompletions> portalsCommandCompletions;
     @Inject
-    private  Provider<PortalsCommandContexts> portalsCommandContexts;
+    private Provider<PortalsCommandContexts> portalsCommandContexts;
     @Inject
     private Provider<CoreConfig> coreConfig;
     @Inject
     private Provider<PortalsConfig> portalsConfigProvider;
     @Inject
     private Provider<BstatsMetricsConfigurator> metricsConfiguratorProvider;
+    @Inject
+    private Provider<PortalVisualizer> portalVisualizer;
 
     private FileConfiguration MVPPortalConfig;
     private WorldEditConnection worldEditConnection;
@@ -96,7 +99,8 @@ public class MultiversePortals extends MultiverseModule {
         this.portalSessions = new HashMap<>();
 
         this.destinationsProvider.get().registerDestination(this.serviceLocator.getService(PortalDestination.class));
-        this.destinationsProvider.get().registerDestination(this.serviceLocator.getService(RandomPortalDestination.class));
+        this.destinationsProvider.get()
+                .registerDestination(this.serviceLocator.getService(RandomPortalDestination.class));
 
         if (!this.setupConfig()) {
             Logging.severe("Your configs were not loaded.");
@@ -117,6 +121,12 @@ public class MultiversePortals extends MultiverseModule {
 
     @Override
     public void onDisable() {
+        this.portalVisualizer.get().cleanup();
+        try {
+            this.serviceLocator.getService(MVPEntityMoveListener.class).stopTask();
+        } catch (Exception e) {
+            // Ignore if service not found or failing
+        }
         this.savePortalsConfig();
         MultiversePortalsApi.shutdown();
         shutdownDependencyInjection();
@@ -132,7 +142,7 @@ public class MultiversePortals extends MultiverseModule {
         var pluginManager = getServer().getPluginManager();
 
         Try.run(() -> serviceLocator.getAllServices(PortalsListener.class).forEach(
-                        listener -> pluginManager.registerEvents(listener, this)))
+                listener -> pluginManager.registerEvents(listener, this)))
                 .onFailure(e -> {
                     throw new RuntimeException("Failed to register listeners. Terminating...", e);
                 });
@@ -142,6 +152,17 @@ public class MultiversePortals extends MultiverseModule {
         if (portalsConfigProvider.get().getUseOnMove()) {
             pluginManager.registerEvents(serviceLocator.getService(MVPPlayerMoveListener.class), this);
         }
+        // Register Projectile Listener
+        pluginManager.registerEvents(serviceLocator.getService(MVPProjectileListener.class), this);
+        // Register Normal Entity Listeners
+        pluginManager.registerEvents(serviceLocator.getService(MVPEntityListener.class), this);
+        // MVPEntityMoveListener does not need event registration as it runs a task,
+        // but we might want to ensure it is created/started by getting it from
+        // serviceLocator.
+        // However, the class implements Listener (empty?), so we can register it if
+        // needed, or just get it.
+        // The constructor starts the task.
+        serviceLocator.getService(MVPEntityMoveListener.class);
     }
 
     /**
@@ -156,7 +177,8 @@ public class MultiversePortals extends MultiverseModule {
     }
 
     /**
-     * Gets a PortalSession for a give player. A new instance is created if not present.
+     * Gets a PortalSession for a give player. A new instance is created if not
+     * present.
      *
      * @param p Target player to get PortalSession.
      * @return The player's {@link PortalPlayerSession}
@@ -185,6 +207,7 @@ public class MultiversePortals extends MultiverseModule {
                 MVPortal portal = MVPortal.loadMVPortalFromConfig(this, pname);
                 if (portal.getPortalLocation().isValidLocation()) {
                     this.portalManager.get().addPortal(portal);
+                    this.portalVisualizer.get().startVisualizer(portal);
                 } else {
                     Logging.warning(String.format("Portal '%s' not loaded due to invalid location!", portal.getName()));
                 }
@@ -207,7 +230,10 @@ public class MultiversePortals extends MultiverseModule {
         }
     }
 
-    /** Register commands to Multiverse's CommandHandler so we get a super sexy single menu */
+    /**
+     * Register commands to Multiverse's CommandHandler so we get a super sexy
+     * single menu
+     */
     private void registerCommands() {
         Try.run(() -> {
             portalsCommandCompletions.get();
@@ -224,7 +250,8 @@ public class MultiversePortals extends MultiverseModule {
     }
 
     /**
-     * Returns the WorldEdit compatibility object. Use this to check for WorldEdit and get a player's WorldEdit selection.
+     * Returns the WorldEdit compatibility object. Use this to check for WorldEdit
+     * and get a player's WorldEdit selection.
      *
      * @return the WorldEdit compatibility object.
      */
@@ -242,6 +269,7 @@ public class MultiversePortals extends MultiverseModule {
 
     public void reloadConfigs(boolean reloadPortals) {
         if (reloadPortals) {
+            this.portalVisualizer.get().cleanup();
             this.portalManager.get().removeAll(false);
             this.loadPortals();
         }
@@ -262,7 +290,8 @@ public class MultiversePortals extends MultiverseModule {
 
         if (portalsConfigProvider.get().getUseOnMove() != previousUseOnMove) {
             if (portalsConfigProvider.get().getUseOnMove()) {
-                pm.registerEvents(serviceLocator.getService(MVPPlayerMoveListener.class), this);;
+                pm.registerEvents(serviceLocator.getService(MVPPlayerMoveListener.class), this);
+                ;
             } else {
                 BlockFromToEvent.getHandlerList().unregister(this);
                 PlayerMoveEvent.getHandlerList().unregister(this);
@@ -392,7 +421,8 @@ public class MultiversePortals extends MultiverseModule {
     }
 
     /**
-     * @deprecated Use {@link PortalsConfig} methods instead. Do not edit the config file object itself.
+     * @deprecated Use {@link PortalsConfig} methods instead. Do not edit the config
+     *             file object itself.
      */
     @Deprecated(since = "5.1", forRemoval = true)
     @ApiStatus.ScheduledForRemoval(inVersion = "6.0")

@@ -77,17 +77,20 @@ final class MVPortalNodes {
                     }
                     MultiverseRegion region = plugin.getPortalSession(player).getSelectedRegion();
                     if (region == null) {
-                        return Try.failure(new MultiverseException("You must select a region first. See `/mvp wand` for more info."));
+                        return Try.failure(new MultiverseException(
+                                "You must select a region first. See `/mvp wand` for more info."));
                     }
                     return Try.success(region.toString());
                 }
                 PortalLocation portalLocation = PortalLocation.parseLocation(input);
                 if (!portalLocation.isValidLocation()) {
-                    return Try.failure(new MultiverseException("Invalid location format. The portal location must be in the format `WORLD:X,Y,Z:X,Y,Z`."));
+                    return Try.failure(new MultiverseException(
+                            "Invalid location format. The portal location must be in the format `WORLD:X,Y,Z:X,Y,Z`."));
                 }
                 return Try.success(portalLocation.toString());
             })
-            .onSetValue((oldValue, newValue) -> portal.setPortalLocationInternal(PortalLocation.parseLocation(newValue)))
+            .onSetValue(
+                    (oldValue, newValue) -> portal.setPortalLocationInternal(PortalLocation.parseLocation(newValue)))
             .build());
 
     final ConfigNode<String> destination = node(ConfigNode.builder("destination", String.class)
@@ -99,12 +102,69 @@ final class MVPortalNodes {
                     .toTry())
             .build());
 
-    final ConfigNode<Boolean> checkDestinationSafety = node(ConfigNode.builder("check-destination-safety", Boolean.class)
-            .defaultValue(true)
-            .build());
+    final ConfigNode<Boolean> checkDestinationSafety = node(
+            ConfigNode.builder("check-destination-safety", Boolean.class)
+                    .defaultValue(true)
+                    .build());
 
     final ConfigNode<Double> version = node(ConfigNode.builder("version", Double.class)
             .defaultValue(0.0)
             .hidden()
             .build());
+
+    // Particle Configuration Nodes
+    final ConfigNode<Boolean> particlesEnabled = node(ConfigNode.builder("particles.enabled", Boolean.class)
+            .defaultValue(true)
+            .build());
+
+    final ConfigNode<Double> particleCircleRadius = node(ConfigNode.builder("particles.circle.radius", Double.class)
+            .defaultValue(2.0)
+            .build());
+
+    final ConfigNode<Integer> particleCircleCount = node(ConfigNode.builder("particles.circle.count", Integer.class)
+            .defaultValue(20)
+            .build());
+
+    final ConfigNode<Double> particleCircleSize = node(ConfigNode.builder("particles.circle.size", Double.class)
+            .defaultValue(0.7)
+            .build());
+
+    final ConfigNode<Double> particleCircleHeight = node(ConfigNode.builder("particles.circle.height", Double.class)
+            .defaultValue(0.5)
+            .build());
+
+    final ConfigNode<String> particleColorPrimary = node(
+            ConfigNode.builder("particles.circle.colors.primary", String.class)
+                    .defaultValue("#4287F5")
+                    .build());
+
+    final ConfigNode<String> particleColorSecondary = node(
+            ConfigNode.builder("particles.circle.colors.secondary", String.class)
+                    .defaultValue("#42F5D1")
+                    .build());
+
+    final ConfigNode<String> particleColorPlayer = node(
+            ConfigNode.builder("particles.reactive.colors.player", String.class)
+                    .defaultValue("#42F55F")
+                    .build());
+
+    final ConfigNode<String> particleColorEntity = node(
+            ConfigNode.builder("particles.reactive.colors.entity", String.class)
+                    .defaultValue("#F5A142")
+                    .build());
+
+    final ConfigNode<String> particleColorPearl = node(
+            ConfigNode.builder("particles.reactive.colors.pearl", String.class)
+                    .defaultValue("#8842F5")
+                    .build());
+
+    final ConfigNode<String> particleColorVehicle = node(
+            ConfigNode.builder("particles.reactive.colors.vehicle", String.class)
+                    .defaultValue("#F542A1")
+                    .build());
+
+    final ConfigNode<String> particleColorDestination = node(
+            ConfigNode.builder("particles.destination.colors.default", String.class)
+                    .defaultValue("#FFFFFF")
+                    .build());
 }
