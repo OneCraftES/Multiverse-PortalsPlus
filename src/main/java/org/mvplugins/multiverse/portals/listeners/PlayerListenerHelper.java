@@ -16,10 +16,13 @@ import org.bukkit.entity.Player;
 final class PlayerListenerHelper {
 
     private final AsyncSafetyTeleporter safetyTeleporter;
+    private final org.mvplugins.multiverse.portals.utils.LeashManager leashManager;
 
     @Inject
-    PlayerListenerHelper(@NotNull AsyncSafetyTeleporter safetyTeleporter) {
+    PlayerListenerHelper(@NotNull AsyncSafetyTeleporter safetyTeleporter,
+            @NotNull org.mvplugins.multiverse.portals.utils.LeashManager leashManager) {
         this.safetyTeleporter = safetyTeleporter;
+        this.leashManager = leashManager;
     }
 
     void stateSuccess(String playerName, String worldName) {
@@ -34,18 +37,46 @@ final class PlayerListenerHelper {
                 playerName, portalName));
     }
 
-    void performTeleport(Player player, Location to, PortalPlayerSession ps, DestinationInstance<?, ?> destination, boolean checkSafety) {
+    void performTeleport(Player player, Location to, PortalPlayerSession ps, DestinationInstance<?, ?> destination,
+            boolean checkSafety) {
+        Location sourceLoc = player.getLocation();
+        org.mvplugins.multiverse.portals.utils.LeashManager.EntityGraph graph = null;
+        try {
+            graph = this.leashManager.collectWholeChain(player, sourceLoc);
+            if (graph != null) {
+                this.leashManager.toggleLeashProtection(graph.entities, true);
+            }
+        } catch (Exception e) {
+            Logging.warning("Failed to collect leash chain for player " + player.getName() + ": " + e.getMessage());
+        }
+
+        final org.mvplugins.multiverse.portals.utils.LeashManager.EntityGraph finalGraph = graph;
+
         safetyTeleporter.to(destination)
                 .checkSafety(checkSafety && destination.checkTeleportSafety())
                 .teleportSingle(player)
                 .onSuccess(() -> {
-                    ps.playerDidTeleport(to);
-                    ps.setTeleportTime(new Date());
-                    this.stateSuccess(player.getDisplayName(), destination.toString());
+                    try {
+                        ps.playerDidTeleport(to);
+                        ps.setTeleportTime(new Date());
+                        this.stateSuccess(player.getDisplayName(), destination.toString());
+                        // Teleport leashed entities (and mounts)
+                        if (finalGraph != null) {
+                            this.leashManager.teleportChain(finalGraph, player, sourceLoc, player.getLocation());
+                        }
+                    } finally {
+                        if (finalGraph != null) {
+                            this.leashManager.toggleLeashProtection(finalGraph.entities, false);
+                        }
+                    }
                 })
-                .onFailure(reason -> Logging.fine(
-                        "Failed to teleport player '%s' to destination '%s'. Reason: %s",
-                        player.getDisplayName(), destination, reason)
-                );
+                .onFailure(reason -> {
+                    if (finalGraph != null) {
+                        this.leashManager.toggleLeashProtection(finalGraph.entities, false);
+                    }
+                    Logging.fine(
+                            "Failed to teleport player '%s' to destination '%s'. Reason: %s",
+                            player.getDisplayName(), destination, reason);
+                });
     }
 }

@@ -13,15 +13,22 @@ import org.mvplugins.multiverse.external.jakarta.inject.Inject;
 import org.mvplugins.multiverse.portals.MVPortal;
 
 import org.mvplugins.multiverse.portals.MultiversePortals;
+import org.jetbrains.annotations.NotNull;
 
 @Service
 public class EntityPortalManager {
 
     private final MultiversePortals plugin;
+    private final PortalVisualizer portalVisualizer;
+    private final LeashManager leashManager;
 
     @Inject
-    public EntityPortalManager(MultiversePortals plugin) {
+    public EntityPortalManager(@NotNull MultiversePortals plugin,
+            @NotNull PortalVisualizer portalVisualizer,
+            @NotNull LeashManager leashManager) {
         this.plugin = plugin;
+        this.portalVisualizer = portalVisualizer;
+        this.leashManager = leashManager;
     }
 
     public boolean teleportEntity(Entity entity, MVPortal portal) {
@@ -38,17 +45,33 @@ public class EntityPortalManager {
             return this.handleVehicleTeleport(vehicle, destination);
         }
 
-        Location targetLocation = destination.getLocation(entity).getOrNull();
-        if (targetLocation == null) {
-            return false;
-        }
+        Location sourceLoc = entity.getLocation();
+        // Collect whole chain/graph BEFORE teleporting the holder
+        org.mvplugins.multiverse.portals.utils.LeashManager.EntityGraph graph = this.leashManager
+                .collectWholeChain(entity, sourceLoc);
 
-        Vector velocity = entity.getVelocity();
-        boolean success = entity.teleport(targetLocation);
-        if (success) {
-            entity.setVelocity(velocity);
+        // Protect chain
+        this.leashManager.toggleLeashProtection(graph.entities, true);
+
+        try {
+            Location targetLocation = destination.getLocation(entity).getOrNull();
+            if (targetLocation == null) {
+                return false;
+            }
+
+            Vector velocity = entity.getVelocity();
+            boolean success = entity.teleport(targetLocation);
+            if (success) {
+                entity.setVelocity(velocity);
+                // Teleport the rest of the chain
+                this.leashManager.teleportChain(graph, entity, sourceLoc, targetLocation);
+                // Visual Effects
+                this.portalVisualizer.displayReactiveEffect(entity, portal);
+            }
+            return success;
+        } finally {
+            this.leashManager.toggleLeashProtection(graph.entities, false);
         }
-        return success;
     }
 
     private boolean handleVehicleTeleport(Vehicle vehicle, DestinationInstance<?, ?> destination) {
@@ -57,39 +80,35 @@ public class EntityPortalManager {
             return false;
         }
 
-        // 1. Eject all passengers
-        List<Entity> passengers = List.copyOf(vehicle.getPassengers());
-        for (Entity passenger : passengers) {
-            vehicle.removePassenger(passenger);
-        }
+        Location sourceLoc = vehicle.getLocation();
+        org.mvplugins.multiverse.portals.utils.LeashManager.EntityGraph graph = this.leashManager
+                .collectWholeChain(vehicle, sourceLoc);
 
-        // 2. Teleport vehicle
-        Vector velocity = vehicle.getVelocity();
-        boolean success = vehicle.teleport(targetLocation);
-        if (!success) {
-            return false;
-        }
-        vehicle.setVelocity(velocity);
+        // Protect them from breaking due to distance
+        this.leashManager.toggleLeashProtection(graph.entities, true);
 
-        // 3. Teleport passengers
-        for (Entity passenger : passengers) {
-            passenger.teleport(targetLocation);
-        }
-
-        // 4. Remount passengers (Delayed to ensure entities are ready)
-        this.plugin.getServer().getScheduler().runTaskLater(this.plugin, () -> {
-            // Re-validate entities before remounting
-            if (!vehicle.isValid())
-                return;
-
+        try {
+            // Must eject passengers before teleporting vehicle
+            List<Entity> passengers = List.copyOf(vehicle.getPassengers());
             for (Entity passenger : passengers) {
-                if (passenger.isValid()) {
-                    vehicle.addPassenger(passenger);
-                }
+                vehicle.removePassenger(passenger);
             }
-        }, 2L);
 
-        return true;
+            // Teleport vehicle
+            Vector velocity = vehicle.getVelocity();
+            boolean success = vehicle.teleport(targetLocation);
+            if (!success) {
+                return false;
+            }
+            vehicle.setVelocity(velocity);
+
+            // Teleport the rest (passengers + leashes) using the graph
+            this.leashManager.teleportChain(graph, vehicle, sourceLoc, targetLocation);
+
+            return true;
+        } finally {
+            this.leashManager.toggleLeashProtection(graph.entities, false);
+        }
     }
 
     public boolean canUsePortal(Entity entity) {

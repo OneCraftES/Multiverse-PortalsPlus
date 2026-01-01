@@ -164,6 +164,8 @@ public class MultiversePortals extends MultiverseModule {
         // needed, or just get it.
         // The constructor starts the task.
         serviceLocator.getService(MVPEntityMoveListener.class);
+        pluginManager.registerEvents(
+                serviceLocator.getService(org.mvplugins.multiverse.portals.utils.LeashManager.class), this);
     }
 
     /**

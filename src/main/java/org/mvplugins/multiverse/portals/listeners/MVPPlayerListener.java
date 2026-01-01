@@ -54,6 +54,7 @@ public class MVPPlayerListener implements PortalsListener {
     private final WorldManager worldManager;
     private final BlockSafety blockSafety;
     private final MVEconomist economist;
+    private final org.mvplugins.multiverse.portals.utils.LeashManager leashManager;
 
     @Inject
     MVPPlayerListener(
@@ -65,7 +66,8 @@ public class MVPPlayerListener implements PortalsListener {
             @NotNull LocationManipulation locationManipulation,
             @NotNull WorldManager worldManager,
             @NotNull BlockSafety blockSafety,
-            @NotNull MVEconomist economist) {
+            @NotNull MVEconomist economist,
+            @NotNull org.mvplugins.multiverse.portals.utils.LeashManager leashManager) {
         this.plugin = plugin;
         this.portalsConfig = portalsConfig;
         this.helper = helper;
@@ -75,6 +77,7 @@ public class MVPPlayerListener implements PortalsListener {
         this.worldManager = worldManager;
         this.blockSafety = blockSafety;
         this.economist = economist;
+        this.leashManager = leashManager;
     }
 
     @EventHandler
@@ -111,7 +114,8 @@ public class MVPPlayerListener implements PortalsListener {
             } else {
                 Material fillMaterial = Material.AIR;
                 Logging.finer("Fill Material: " + fillMaterial);
-                this.filler.fillRegion(portal.getPortalLocation().getRegion(), event.getBlockClicked().getLocation(), fillMaterial, event.getPlayer());
+                this.filler.fillRegion(portal.getPortalLocation().getRegion(), event.getBlockClicked().getLocation(),
+                        fillMaterial, event.getPlayer());
             }
         }
     }
@@ -131,7 +135,8 @@ public class MVPPlayerListener implements PortalsListener {
         Location translatedLocation = this.getTranslatedLocation(event.getBlockClicked(), event.getBlockFace());
         Logging.finer("Fill: ");
         Logging.finer("Block Clicked: " + event.getBlockClicked() + ":" + event.getBlockClicked().getType());
-        Logging.finer("Translated Block: " + event.getPlayer().getWorld().getBlockAt(translatedLocation) + ":" + event.getPlayer().getWorld().getBlockAt(translatedLocation).getType());
+        Logging.finer("Translated Block: " + event.getPlayer().getWorld().getBlockAt(translatedLocation) + ":"
+                + event.getPlayer().getWorld().getBlockAt(translatedLocation).getType());
 
         PortalPlayerSession ps = this.plugin.getPortalSession(event.getPlayer());
         MVPortal portal = portalManager.getPortal(event.getPlayer(), translatedLocation);
@@ -150,7 +155,8 @@ public class MVPPlayerListener implements PortalsListener {
                 }
 
                 Logging.finer("Fill Material: " + fillMaterial);
-                this.filler.fillRegion(portal.getPortalLocation().getRegion(), translatedLocation, fillMaterial, event.getPlayer());
+                this.filler.fillRegion(portal.getPortalLocation().getRegion(), translatedLocation, fillMaterial,
+                        event.getPlayer());
             }
         }
     }
@@ -165,7 +171,8 @@ public class MVPPlayerListener implements PortalsListener {
         // Portal lighting stuff
         if (event.getAction() == Action.RIGHT_CLICK_BLOCK && event.getMaterial() == Material.FLINT_AND_STEEL) {
             // They're lighting somethin'
-            Logging.finer("Player is lighting block: " + this.locationManipulation.strCoordsRaw(event.getClickedBlock().getLocation()));
+            Logging.finer("Player is lighting block: "
+                    + this.locationManipulation.strCoordsRaw(event.getClickedBlock().getLocation()));
             PortalPlayerSession ps = this.plugin.getPortalSession(event.getPlayer());
             Location translatedLocation = this.getTranslatedLocation(event.getClickedBlock(), event.getBlockFace());
             if (!portalManager.isPortal(translatedLocation)) {
@@ -192,18 +199,21 @@ public class MVPPlayerListener implements PortalsListener {
 
                 Logging.finer("Right Clicked: ");
                 Logging.finer("Block Clicked: " + event.getClickedBlock() + ":" + event.getClickedBlock().getType());
-                Logging.finer("Translated Block: " + event.getPlayer().getWorld().getBlockAt(translatedLocation) + ":" + event.getPlayer().getWorld().getBlockAt(translatedLocation).getType());
+                Logging.finer("Translated Block: " + event.getPlayer().getWorld().getBlockAt(translatedLocation) + ":"
+                        + event.getPlayer().getWorld().getBlockAt(translatedLocation).getType());
                 Logging.finer("In Hand: " + inHand);
                 if (ps.isDebugModeOn()) {
                     ps.showDebugInfo(portal);
                     event.setCancelled(true);
                 } else {
                     Material fillMaterial = Material.NETHER_PORTAL;
-                    if (translatedLocation.getWorld().getBlockAt(translatedLocation).getType() == Material.NETHER_PORTAL) {
+                    if (translatedLocation.getWorld().getBlockAt(translatedLocation)
+                            .getType() == Material.NETHER_PORTAL) {
                         fillMaterial = Material.AIR;
                     }
                     Logging.finer("Fill Material: " + fillMaterial);
-                    event.setCancelled(this.filler.fillRegion(portal.getPortalLocation().getRegion(), translatedLocation, fillMaterial, event.getPlayer()));
+                    event.setCancelled(this.filler.fillRegion(portal.getPortalLocation().getRegion(),
+                            translatedLocation, fillMaterial, event.getPlayer()));
                 }
             }
             return;
@@ -223,17 +233,22 @@ public class MVPPlayerListener implements PortalsListener {
         }
 
         if (event.getAction() == Action.LEFT_CLICK_BLOCK) {
-            LoadedMultiverseWorld world = this.worldManager.getLoadedWorld(event.getPlayer().getWorld().getName()).getOrNull();
-            event.setCancelled(this.plugin.getPortalSession(event.getPlayer()).setLeftClickSelection(event.getClickedBlock().getLocation().toVector(), world));
+            LoadedMultiverseWorld world = this.worldManager.getLoadedWorld(event.getPlayer().getWorld().getName())
+                    .getOrNull();
+            event.setCancelled(this.plugin.getPortalSession(event.getPlayer())
+                    .setLeftClickSelection(event.getClickedBlock().getLocation().toVector(), world));
         } else if (event.getAction() == Action.RIGHT_CLICK_BLOCK) {
-            LoadedMultiverseWorld world = this.worldManager.getLoadedWorld(event.getPlayer().getWorld().getName()).getOrNull();
-            event.setCancelled(this.plugin.getPortalSession(event.getPlayer()).setRightClickSelection(event.getClickedBlock().getLocation().toVector(), world));
+            LoadedMultiverseWorld world = this.worldManager.getLoadedWorld(event.getPlayer().getWorld().getName())
+                    .getOrNull();
+            event.setCancelled(this.plugin.getPortalSession(event.getPlayer())
+                    .setRightClickSelection(event.getClickedBlock().getLocation().toVector(), world));
         }
     }
 
     private Location getTranslatedLocation(Block clickedBlock, BlockFace face) {
         Location clickedLoc = clickedBlock.getLocation();
-        Location newLoc = new Location(clickedBlock.getWorld(), face.getModX() + clickedLoc.getBlockX(), face.getModY() + clickedLoc.getBlockY(), face.getModZ() + clickedLoc.getBlockZ());
+        Location newLoc = new Location(clickedBlock.getWorld(), face.getModX() + clickedLoc.getBlockX(),
+                face.getModY() + clickedLoc.getBlockY(), face.getModZ() + clickedLoc.getBlockZ());
         Logging.finest("Clicked Block: " + clickedBlock.getLocation());
         Logging.finest("Translated Block: " + newLoc);
         return newLoc;
@@ -268,7 +283,8 @@ public class MVPPlayerListener implements PortalsListener {
                 event.setCancelled(true);
 
                 if (!portal.isFrameValid(playerPortalLoc)) {
-                    event.getPlayer().sendMessage("This portal's frame is made of an " + ChatColor.RED + "incorrect material." + ChatColor.RED + " You should exit it now.");
+                    event.getPlayer().sendMessage("This portal's frame is made of an " + ChatColor.RED
+                            + "incorrect material." + ChatColor.RED + " You should exit it now.");
                     return;
                 }
 
@@ -279,16 +295,19 @@ public class MVPPlayerListener implements PortalsListener {
                 }
 
                 if (!this.worldManager.isLoadedWorld(destLocation.getWorld())) {
-                    Logging.fine("Unable to teleport player because the destination world is not managed by Multiverse!");
+                    Logging.fine(
+                            "Unable to teleport player because the destination world is not managed by Multiverse!");
                     return;
                 }
 
                 if (portal.getCheckDestinationSafety() && portalDest.checkTeleportSafety()) {
-                    Location safeLocation = blockSafety.findSafeSpawnLocation(portalDest.getLocation(event.getPlayer()).getOrNull());
+                    Location safeLocation = blockSafety
+                            .findSafeSpawnLocation(portalDest.getLocation(event.getPlayer()).getOrNull());
                     if (safeLocation == null) {
                         event.setCancelled(true);
                         Logging.warning("Portal " + portal.getName() + " destination is not safe!");
-                        event.getPlayer().sendMessage(ChatColor.RED + "Portal " + portal.getName() + " destination is not safe!");
+                        event.getPlayer().sendMessage(
+                                ChatColor.RED + "Portal " + portal.getName() + " destination is not safe!");
                         return;
                     }
                     destLocation = safeLocation;
@@ -301,9 +320,11 @@ public class MVPPlayerListener implements PortalsListener {
                     Logging.fine("Player denied teleportation due to cooldown.");
                     return;
                 }
-                // If they're using Access and they don't have permission and they're NOT exempt, return, they're not allowed to tp.
+                // If they're using Access and they don't have permission and they're NOT
+                // exempt, return, they're not allowed to tp.
                 // No longer checking exemption status
-                if (portalsConfig.getEnforcePortalAccess() && !event.getPlayer().hasPermission(portal.getPermission())) {
+                if (portalsConfig.getEnforcePortalAccess()
+                        && !event.getPlayer().hasPermission(portal.getPermission())) {
                     this.helper.stateFailure(p.getDisplayName(), portal.getName());
                     return;
                 }
@@ -316,8 +337,9 @@ public class MVPPlayerListener implements PortalsListener {
                 if (price != 0D && !p.hasPermission(portal.getExempt())) {
                     shouldPay = true;
                     if (price > 0D && !economist.isPlayerWealthyEnough(p, price, currency)) {
-                        p.sendMessage(economist.getNSFMessage(currency,
-                                "You need " + economist.formatPrice(price, currency) + " to enter the " + portal.getName() + " portal."));
+                        p.sendMessage(
+                                economist.getNSFMessage(currency, "You need " + economist.formatPrice(price, currency)
+                                        + " to enter the " + portal.getName() + " portal."));
                         return;
                     }
                 }
@@ -340,12 +362,35 @@ public class MVPPlayerListener implements PortalsListener {
                             portal.getName()));
                 }
 
-                event.getPlayer().teleport(event.getTo());
+                Location sourceLoc = event.getPlayer().getLocation();
+                org.mvplugins.multiverse.portals.utils.LeashManager.EntityGraph graph = null;
+                try {
+                    graph = this.leashManager.collectWholeChain(event.getPlayer(), sourceLoc);
+                    if (graph != null) {
+                        this.leashManager.toggleLeashProtection(graph.entities, true);
+                    }
+                } catch (Exception e) {
+                    Logging.warning("Failed to collect leash chain for player " + event.getPlayer().getName() + ": "
+                            + e.getMessage());
+                }
+
+                try {
+                    event.getPlayer().teleport(event.getTo());
+                    // Teleport leashed entities
+                    if (graph != null) {
+                        this.leashManager.teleportChain(graph, event.getPlayer(), sourceLoc, event.getTo());
+                    }
+                } finally {
+                    if (graph != null) {
+                        this.leashManager.toggleLeashProtection(graph.entities, false);
+                    }
+                }
             } else if (!portalsConfig.getPortalsDefaultToNether()) {
                 // If portals should not default to the nether, cancel the event
-                event.getPlayer().sendMessage(String.format(
-                        "This portal %sdoesn't go anywhere. You should exit it now.", ChatColor.RED));
-                Logging.fine("Event canceled because this was a MVPortal with an invalid destination. But you had 'portalsdefaulttonether' set to false!");
+                event.getPlayer().sendMessage(
+                        String.format("This portal %sdoesn't go anywhere. You should exit it now.", ChatColor.RED));
+                Logging.fine(
+                        "Event canceled because this was a MVPortal with an invalid destination. But you had 'portalsdefaulttonether' set to false!");
                 event.setCancelled(true);
             }
         }
