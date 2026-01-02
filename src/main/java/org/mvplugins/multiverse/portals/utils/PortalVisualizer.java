@@ -12,7 +12,9 @@ import org.bukkit.entity.Vehicle;
 import org.bukkit.scheduler.BukkitRunnable;
 import org.bukkit.scheduler.BukkitTask;
 import org.bukkit.util.Vector;
+import org.bukkit.World;
 import org.jvnet.hk2.annotations.Service;
+import org.mvplugins.multiverse.core.destination.DestinationInstance;
 import org.mvplugins.multiverse.external.jakarta.inject.Inject;
 import org.mvplugins.multiverse.portals.MVPortal;
 import org.mvplugins.multiverse.portals.MultiversePortals;
@@ -25,6 +27,7 @@ public class PortalVisualizer {
     private final Map<MVPortal, Double> currentAngles; // Keep track of angle per portal
     private final Map<MVPortal, Color> portalColors;
     private final Map<MVPortal, Long> colorResetTimes;
+    private final Map<MVPortal, String[]> dynamicDefaults;
 
     // Default Colors (fallback)
     private static final String DEFAULT_PRIMARY = "#4287F5";
@@ -37,6 +40,7 @@ public class PortalVisualizer {
         this.currentAngles = new HashMap<>();
         this.portalColors = new HashMap<>();
         this.colorResetTimes = new HashMap<>();
+        this.dynamicDefaults = new HashMap<>();
     }
 
     public void startVisualizer(final MVPortal portal) {
@@ -49,6 +53,24 @@ public class PortalVisualizer {
 
         this.plugin.getLogger().info("Starting visualizer for portal: " + portal.getName());
         this.currentAngles.put(portal, 0.0);
+
+        // Resolve dynamic colors
+        String[] defaults = { DEFAULT_PRIMARY, DEFAULT_SECONDARY };
+        DestinationInstance<?, ?> dest = portal.getDestination();
+        if (dest != null) {
+            // Use a default location if specific entity context not available (usually fine
+            // for general world detection)
+            Location loc = dest.getLocation(null).getOrNull();
+            if (loc != null && loc.getWorld() != null) {
+                World.Environment env = loc.getWorld().getEnvironment();
+                if (env == World.Environment.NETHER) {
+                    defaults = new String[] { "#FF0000", "#FF8C00" }; // Red, Dark Orange
+                } else if (env == World.Environment.THE_END) {
+                    defaults = new String[] { "#800080", "#00FF00" }; // Purple, Lime
+                }
+            }
+        }
+        this.dynamicDefaults.put(portal, defaults);
 
         BukkitTask task = new BukkitRunnable() {
             @Override
@@ -86,6 +108,7 @@ public class PortalVisualizer {
             this.currentAngles.remove(portal);
             this.portalColors.remove(portal);
             this.colorResetTimes.remove(portal);
+            this.dynamicDefaults.remove(portal);
         }
     }
 
@@ -104,13 +127,24 @@ public class PortalVisualizer {
         double heightOffset = calculateHeightOffset(min, max);
 
         Location center = new Location(region.getWorld().getBukkitWorld().getOrNull(),
-                (max.getX() + min.getX()) / 2.0 + 0.5,
+                min.getX() + (region.getWidth() / 2.0),
                 min.getY(),
-                (max.getZ() + min.getZ()) / 2.0 + 0.5);
+                min.getZ() + (region.getDepth() / 2.0));
         center.add(0.0, heightOffset, 0.0);
 
-        Color colorPrimary = parseColor(portal.getParticleColorPrimary(), DEFAULT_PRIMARY);
-        Color colorSecondary = parseColor(portal.getParticleColorSecondary(), DEFAULT_SECONDARY);
+        String[] defaults = this.dynamicDefaults.getOrDefault(portal,
+                new String[] { DEFAULT_PRIMARY, DEFAULT_SECONDARY });
+        String primaryHex = portal.getParticleColorPrimary();
+        String secondaryHex = portal.getParticleColorSecondary();
+
+        // If config is default, use dynamic default
+        if (DEFAULT_PRIMARY.equals(primaryHex))
+            primaryHex = defaults[0];
+        if (DEFAULT_SECONDARY.equals(secondaryHex))
+            secondaryHex = defaults[1];
+
+        Color colorPrimary = parseColor(primaryHex, DEFAULT_PRIMARY);
+        Color colorSecondary = parseColor(secondaryHex, DEFAULT_SECONDARY);
         Color currentColor = this.portalColors.getOrDefault(portal, colorPrimary);
 
         int particleCount = portal.getParticleCircleCount();
@@ -148,9 +182,9 @@ public class PortalVisualizer {
         Vector min = region.getMinimumPoint();
         Vector max = region.getMaximumPoint();
         Location center = new Location(region.getWorld().getBukkitWorld().getOrNull(),
-                (max.getX() + min.getX()) / 2.0 + 0.5,
+                min.getX() + (region.getWidth() / 2.0),
                 min.getY() + calculateHeightOffset(min, max),
-                (max.getZ() + min.getZ()) / 2.0 + 0.5);
+                min.getZ() + (region.getDepth() / 2.0));
 
         Color color = getEntityColor(entity, portal);
         this.portalColors.put(portal, color);

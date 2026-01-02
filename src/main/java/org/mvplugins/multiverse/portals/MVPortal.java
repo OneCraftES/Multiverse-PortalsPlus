@@ -289,7 +289,12 @@ public final class MVPortal {
             Logging.warning("Portal " + this.name + " has an invalid DESTINATION!");
             return false;
         }
-        return this.configHandle.set(configNodes.destination, newDestination.toString()).isSuccess();
+        if (this.configHandle.set(configNodes.destination, newDestination.toString()).isSuccess()) {
+            this.plugin.getServer().getPluginManager()
+                    .callEvent(new org.mvplugins.multiverse.portals.event.MVPortalModifiedEvent(this));
+            return true;
+        }
+        return false;
     }
 
     public DestinationInstance<?, ?> getDestination() {
