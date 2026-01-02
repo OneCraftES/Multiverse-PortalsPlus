@@ -23,6 +23,7 @@ import org.bukkit.command.CommandSender;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.entity.Entity;
 import org.jetbrains.annotations.ApiStatus;
+import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.mvplugins.multiverse.core.command.MVCommandManager;
 import org.mvplugins.multiverse.core.config.handle.MemoryConfigurationHandle;
@@ -302,7 +303,8 @@ public final class MVPortal {
     }
 
     @ApiStatus.AvailableSince("5.2")
-    public Try<Void> setActionType(ActionHandlerType<?, ?> actionType) {
+    public Try<Void> setActionType(@NotNull ActionHandlerType<?, ?> actionType) {
+        Objects.requireNonNull(actionType, "actionType cannot be null");
         return configHandle.set(configNodes.actionType, actionType.getName());
     }
 
@@ -327,24 +329,24 @@ public final class MVPortal {
     }
 
     @ApiStatus.AvailableSince("5.2")
-    public Try<Void> setActionHandler(ActionHandler<?, ?> action) {
+    public Try<Void> setActionHandler(@NotNull ActionHandler<?, ?> action) {
         Objects.requireNonNull(action, "action cannot be null");
         return setActionType(action.getHandlerType())
                 .flatMap(v -> setAction(action.serialise()));
     }
 
     @ApiStatus.AvailableSince("5.2")
-    public Attempt<? extends ActionHandler<?, ?>, ActionFailureReason> getActionHandler() {
+    public @NotNull Attempt<? extends ActionHandler<?, ?>, ActionFailureReason> getActionHandler() {
         return actionHandlerProvider.parseHandler(getActionType(), getAction());
     }
 
     @ApiStatus.AvailableSince("5.2")
-    public Attempt<? extends ActionHandler<?, ?>, ActionFailureReason> getActionHandler(CommandSender sender) {
+    public @NotNull Attempt<? extends ActionHandler<?, ?>, ActionFailureReason> getActionHandler(@NotNull CommandSender sender) {
         return actionHandlerProvider.parseHandler(sender, getActionType(), getAction());
     }
 
     @ApiStatus.AvailableSince("5.2")
-    public Attempt<Void, ActionFailureReason> runActionFor(Entity entity) {
+    public @NotNull Attempt<Void, ActionFailureReason> runActionFor(Entity entity) {
         return getActionHandler(entity)
                 .mapAttempt(actionHandler -> actionHandler.runAction(this, entity))
                 .onSuccess(() -> {
