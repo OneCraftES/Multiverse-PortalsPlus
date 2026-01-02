@@ -10,9 +10,9 @@ import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.plugin.messaging.PluginMessageListener;
-import org.jetbrains.annotations.ApiStatus;
 import org.jetbrains.annotations.NotNull;
 import org.jvnet.hk2.annotations.Service;
+import org.mvplugins.multiverse.core.event.MVConfigReloadEvent;
 import org.mvplugins.multiverse.external.jakarta.inject.Inject;
 import org.mvplugins.multiverse.portals.MultiversePortals;
 
@@ -20,6 +20,9 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 
+/**
+ * Simple utility class to get the server list from BungeeCord compatible proxy if available.
+ */
 @Service
 final class BungeeServerList implements Listener, PluginMessageListener {
 
@@ -52,7 +55,6 @@ final class BungeeServerList implements Listener, PluginMessageListener {
             serverNames = List.of(in.readUTF().split(", "));
             Logging.fine("BungeeCord GetServers: " + String.join(", ", serverNames));
         }
-        didFirstRun = true;
     }
 
     @EventHandler
@@ -60,11 +62,21 @@ final class BungeeServerList implements Listener, PluginMessageListener {
         if (didFirstRun) {
             return;
         }
-        Bukkit.getScheduler().runTaskLater(plugin, () -> {
-            ByteArrayDataOutput out = ByteStreams.newDataOutput();
-            out.writeUTF("GetServers");
-            Bukkit.getServer().sendPluginMessage(plugin, "BungeeCord", out.toByteArray());
-            Logging.fine("Calling BungeeCord GetServers");
-        }, 10);
+        // Delay a bit to make sure player is fully logged in
+        Bukkit.getScheduler().runTaskLater(plugin, this::callBungeeCordGetServers, 10);
+        didFirstRun = true;
+    }
+
+    @EventHandler
+    void configReload(MVConfigReloadEvent event) {
+        // On config reload, we should re-query BungeeCord for the server list
+        callBungeeCordGetServers();
+    }
+
+    private void callBungeeCordGetServers() {
+        ByteArrayDataOutput out = ByteStreams.newDataOutput();
+        out.writeUTF("GetServers");
+        Bukkit.getServer().sendPluginMessage(plugin, "BungeeCord", out.toByteArray());
+        Logging.fine("Calling BungeeCord GetServers");
     }
 }
