@@ -327,6 +327,13 @@ public final class MVPortal {
     }
 
     @ApiStatus.AvailableSince("5.2")
+    public Try<Void> setActionHandler(ActionHandler<?, ?> action) {
+        Objects.requireNonNull(action, "action cannot be null");
+        return setActionType(action.getHandlerType())
+                .flatMap(v -> setAction(action.serialise()));
+    }
+
+    @ApiStatus.AvailableSince("5.2")
     public Attempt<? extends ActionHandler<?, ?>, ActionFailureReason> getActionHandler() {
         return actionHandlerProvider.parseHandler(getActionType(), getAction());
     }
@@ -672,7 +679,7 @@ public final class MVPortal {
 
     /**
      * @deprecated Portals now have new types of action. Hence, the portal's destination (now called action) may not
-     *             always be a multiverse destination. It can be a command or server name as well.
+     *             always be a multiverse destination. For example, it can be a command or server name as well.
      *             Please see {@link MVPortal#getActionHandler()} instead.
      */
     @Deprecated(since = "5.2", forRemoval = true)
@@ -686,17 +693,19 @@ public final class MVPortal {
            Logging.warning("Portal " + this.name + " is not set to use multiverse destination!");
             return false;
         }
-        return this.configHandle.set(configNodes.action, newDestination.toString()).isSuccess();
+        return setActionType("multiverse-destination")
+                .flatMap(ignore -> setAction(newDestination.toString()))
+                .isSuccess();
     }
 
     /**
      * @deprecated Portals now have new types of action. Hence, the portal's destination (now called action) may not
-     *             always be a multiverse destination. It can be a command or server name as well.
+     *             always be a multiverse destination. For example, it can be a command or server name as well.
      *             Please see {@link MVPortal#getActionHandler()} instead.
      */
     @Deprecated(since = "5.2", forRemoval = true)
     @ApiStatus.ScheduledForRemoval(inVersion = "6.0")
-    public DestinationInstance<?, ?> getDestination() {
+    public @Nullable DestinationInstance<?, ?> getDestination() {
         return this.destinationsProvider.parseDestination(getAction())
                 .onFailure(f -> {
                     if (getAction().equals("multiverse-destination")) {
