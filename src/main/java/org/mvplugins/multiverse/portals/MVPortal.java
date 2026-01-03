@@ -327,6 +327,10 @@ public final class MVPortal {
         return this.configHandle.get(configNodes.checkDestinationSafety);
     }
 
+    public String getDestinationString() {
+        return this.configHandle.get(configNodes.destination);
+    }
+
     public Location getSafePlayerSpawnLocation() {
         PortalLocation pl = this.location;
         double portalWidth = Math.abs((pl.getMaximum().getBlockX()) - pl.getMinimum().getBlockX()) + 1;

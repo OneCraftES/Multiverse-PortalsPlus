@@ -51,6 +51,11 @@ public class PortalVisualizer {
             return;
         }
 
+        String destString = portal.getDestinationString();
+        if (destString == null || destString.isEmpty()) {
+            return;
+        }
+
         this.plugin.getLogger().info("Starting visualizer for portal: " + portal.getName());
         this.currentAngles.put(portal, 0.0);
 
@@ -127,9 +132,9 @@ public class PortalVisualizer {
         double heightOffset = calculateHeightOffset(min, max);
 
         Location center = new Location(region.getWorld().getBukkitWorld().getOrNull(),
-                min.getX() + (region.getWidth() / 2.0),
-                min.getY(),
-                min.getZ() + (region.getDepth() / 2.0));
+                min.getBlockX() + (region.getWidth() / 2.0),
+                min.getBlockY(),
+                min.getBlockZ() + (region.getDepth() / 2.0));
         center.add(0.0, heightOffset, 0.0);
 
         String[] defaults = this.dynamicDefaults.getOrDefault(portal,
@@ -182,9 +187,9 @@ public class PortalVisualizer {
         Vector min = region.getMinimumPoint();
         Vector max = region.getMaximumPoint();
         Location center = new Location(region.getWorld().getBukkitWorld().getOrNull(),
-                min.getX() + (region.getWidth() / 2.0),
-                min.getY() + calculateHeightOffset(min, max),
-                min.getZ() + (region.getDepth() / 2.0));
+                min.getBlockX() + (region.getWidth() / 2.0),
+                min.getBlockY() + calculateHeightOffset(min, max),
+                min.getBlockZ() + (region.getDepth() / 2.0));
 
         Color color = getEntityColor(entity, portal);
         this.portalColors.put(portal, color);
