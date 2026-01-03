@@ -23,6 +23,7 @@ import org.bukkit.command.CommandSender;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.entity.Entity;
 import org.jetbrains.annotations.ApiStatus;
+import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.mvplugins.multiverse.core.command.MVCommandManager;
 import org.mvplugins.multiverse.core.config.handle.MemoryConfigurationHandle;
@@ -302,7 +303,8 @@ public final class MVPortal {
     }
 
     @ApiStatus.AvailableSince("5.2")
-    public Try<Void> setActionType(ActionHandlerType<?, ?> actionType) {
+    public Try<Void> setActionType(@NotNull ActionHandlerType<?, ?> actionType) {
+        Objects.requireNonNull(actionType, "actionType cannot be null");
         return configHandle.set(configNodes.actionType, actionType.getName());
     }
 
@@ -327,17 +329,24 @@ public final class MVPortal {
     }
 
     @ApiStatus.AvailableSince("5.2")
-    public Attempt<? extends ActionHandler<?, ?>, ActionFailureReason> getActionHandler() {
+    public Try<Void> setActionHandler(@NotNull ActionHandler<?, ?> action) {
+        Objects.requireNonNull(action, "action cannot be null");
+        return setActionType(action.getHandlerType())
+                .flatMap(v -> setAction(action.serialise()));
+    }
+
+    @ApiStatus.AvailableSince("5.2")
+    public @NotNull Attempt<? extends ActionHandler<?, ?>, ActionFailureReason> getActionHandler() {
         return actionHandlerProvider.parseHandler(getActionType(), getAction());
     }
 
     @ApiStatus.AvailableSince("5.2")
-    public Attempt<? extends ActionHandler<?, ?>, ActionFailureReason> getActionHandler(CommandSender sender) {
+    public @NotNull Attempt<? extends ActionHandler<?, ?>, ActionFailureReason> getActionHandler(@NotNull CommandSender sender) {
         return actionHandlerProvider.parseHandler(sender, getActionType(), getAction());
     }
 
     @ApiStatus.AvailableSince("5.2")
-    public Attempt<Void, ActionFailureReason> runActionFor(Entity entity) {
+    public @NotNull Attempt<Void, ActionFailureReason> runActionFor(Entity entity) {
         return getActionHandler(entity)
                 .mapAttempt(actionHandler -> actionHandler.runAction(this, entity))
                 .onSuccess(() -> {
@@ -672,7 +681,7 @@ public final class MVPortal {
 
     /**
      * @deprecated Portals now have new types of action. Hence, the portal's destination (now called action) may not
-     *             always be a multiverse destination. It can be a command or server name as well.
+     *             always be a multiverse destination. For example, it can be a command or server name as well.
      *             Please see {@link MVPortal#getActionHandler()} instead.
      */
     @Deprecated(since = "5.2", forRemoval = true)
@@ -686,17 +695,19 @@ public final class MVPortal {
            Logging.warning("Portal " + this.name + " is not set to use multiverse destination!");
             return false;
         }
-        return this.configHandle.set(configNodes.action, newDestination.toString()).isSuccess();
+        return setActionType("multiverse-destination")
+                .flatMap(ignore -> setAction(newDestination.toString()))
+                .isSuccess();
     }
 
     /**
      * @deprecated Portals now have new types of action. Hence, the portal's destination (now called action) may not
-     *             always be a multiverse destination. It can be a command or server name as well.
+     *             always be a multiverse destination. For example, it can be a command or server name as well.
      *             Please see {@link MVPortal#getActionHandler()} instead.
      */
     @Deprecated(since = "5.2", forRemoval = true)
     @ApiStatus.ScheduledForRemoval(inVersion = "6.0")
-    public DestinationInstance<?, ?> getDestination() {
+    public @Nullable DestinationInstance<?, ?> getDestination() {
         return this.destinationsProvider.parseDestination(getAction())
                 .onFailure(f -> {
                     if (getAction().equals("multiverse-destination")) {

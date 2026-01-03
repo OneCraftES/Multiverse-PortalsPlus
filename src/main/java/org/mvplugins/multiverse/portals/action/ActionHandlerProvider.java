@@ -81,6 +81,7 @@ public final class ActionHandlerProvider {
      *
      * @since 5.2
      */
+    @ApiStatus.AvailableSince("5.2")
     public @NotNull Attempt<? extends ActionHandler<?, ?>, ActionFailureReason> parseHandler(@NotNull String actionType,
                                                                                              @NotNull String action) {
         return parseHandler(Bukkit.getConsoleSender(), actionType, action);
