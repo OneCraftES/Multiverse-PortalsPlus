@@ -172,7 +172,9 @@ public class PortalVisualizer {
 
             Color transitionColor = interpolateColor(currentColor, colorSecondary, progress);
             Particle.DustOptions dustOptions = new Particle.DustOptions(transitionColor, (float) particleSize);
-            particleLoc.getWorld().spawnParticle(Particle.REDSTONE, particleLoc, 1, 0.0, 0.0, 0.0, 0.0, dustOptions);
+            boolean force = (i % 2 == 0);
+            particleLoc.getWorld().spawnParticle(Particle.REDSTONE, particleLoc, 1, 0.0, 0.0, 0.0, 0.0, dustOptions,
+                    force);
         }
     }
 
@@ -218,8 +220,9 @@ public class PortalVisualizer {
                     double z = radius * Math.sin(angle);
                     Location particleLoc = center.clone().add(x, y, z);
                     Particle.DustOptions dustOptions = new Particle.DustOptions(color, (float) (particleSize * 1.5));
+                    boolean force = (i % 2 == 0);
                     particleLoc.getWorld().spawnParticle(Particle.REDSTONE, particleLoc, 1, 0.0, 0.0, 0.0, 0.0,
-                            dustOptions);
+                            dustOptions, force);
                 }
                 ++this.ticks;
             }
@@ -253,8 +256,9 @@ public class PortalVisualizer {
                     double z = radius * Math.sin(angle);
                     Location particleLoc = destination.clone().add(x, y, z);
                     Particle.DustOptions dustOptions = new Particle.DustOptions(color, (float) (particleSize * 1.2));
+                    boolean force = (i % 2 == 0);
                     particleLoc.getWorld().spawnParticle(Particle.REDSTONE, particleLoc, 1, 0.0, 0.0, 0.0, 0.0,
-                            dustOptions);
+                            dustOptions, force);
                 }
                 ++this.ticks;
             }
